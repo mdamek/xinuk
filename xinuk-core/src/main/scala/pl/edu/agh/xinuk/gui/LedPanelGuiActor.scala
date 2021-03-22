@@ -3,7 +3,6 @@ package pl.edu.agh.xinuk.gui
 import java.awt.Color
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import net.liftweb.json.Serialization.write
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest, HttpResponse}
 import net.liftweb.json.DefaultFormats
@@ -12,7 +11,10 @@ import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.gui.GuiActor.GridInfo
 import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
 import pl.edu.agh.xinuk.model._
+import pl.edu.agh.xinuk.model.grid.GridCellId
 import pl.edu.agh.xinuk.simulation.WorkerActor.{MsgWrapper, SubscribeGridInfo}
+
+import scala.util.Random
 
 class LedPanelGuiActor private(worker: ActorRef,
                                workerId: WorkerId,
@@ -33,6 +35,8 @@ class LedPanelGuiActor private(worker: ActorRef,
 
   def started: Receive = {
     case WorkerAddress(host, port) =>
+      connectedLedPanelHost = host
+      connectedLedPanelPort = port
       log.info("We have address of Worker Actor! " + host + port)
 
     case GridInfo(iteration, cells, metrics) =>
@@ -42,21 +46,45 @@ class LedPanelGuiActor private(worker: ActorRef,
       log.info("Response code: " + code)
   }
 
+  private val obstacleColor = new swing.Color(0, 0, 0)
+  private val emptyColor = new swing.Color(255, 255, 255)
+  private var connectedLedPanelHost = ""
+  private var connectedLedPanelPort = ""
+
+
+  private def defaultColor: CellState => Color =
+    state => state.contents match {
+      case Obstacle => obstacleColor
+      case Empty => emptyColor
+      case other =>
+        val random = new Random(other.getClass.hashCode())
+        val hue = random.nextFloat()
+        val saturation = 1.0f
+        val luminance = 0.6f
+        Color.getHSBColor(hue, saturation, luminance)
+    }
+
   def updateLedPanel(iteration: Long, cells: Set[Cell]): Unit = {
     import akka.pattern.pipe
     import context.dispatcher
+    import net.liftweb.json.Serialization.write
 
     val http = Http(context.system)
 
-    implicit val formats = DefaultFormats
-    val jsonString = write(cells)
+    val points = cells map {
+      case Cell(GridCellId(x, y), state) =>
+        val color: Color = cellToColor.applyOrElse(state, defaultColor)
+        Point(x, y, RgbColor(color.getRed, color.getGreen, color.getBlue))
+      case _ =>
+    }
 
-    print(jsonString)
+    implicit val formats: DefaultFormats.type = DefaultFormats
 
     val request = HttpRequest(
       method = HttpMethods.POST,
-      uri = "http://192.168.100.199:8080/easy",
-      entity = HttpEntity(ContentTypes.`application/json`, jsonString)
+      uri = "http://192.168.100.200:8080/easy",
+      entity = HttpEntity(ContentTypes.`application/json`,
+        write(Iteration(iteration.toInt, points)))
     )
 
     http.singleRequest(request)
@@ -74,3 +102,6 @@ object LedPanelGuiActor {
     Props(new LedPanelGuiActor(worker, workerId, worldSpan, cellToColor))
   }
 }
+case class Iteration(iteration: Int, points: Set[Any])
+case class Point(x: Int, y: Int, colorRGB: RgbColor)
+case class RgbColor(r: Int, g:Int, b:Int)
