@@ -1,11 +1,12 @@
 package pl.edu.agh.xinuk.simulation
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, ExtensionKey, Props, Stash}
+import akka.actor.{Actor, ActorRef, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props, Stash}
 import akka.cluster.sharding.ShardRegion.{ExtractEntityId, ExtractShardId}
 import org.slf4j.{Logger, LoggerFactory, MarkerFactory}
 import pl.edu.agh.xinuk.algorithm._
 import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.gui.GuiActor.GridInfo
+import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
 import pl.edu.agh.xinuk.model._
 
 import scala.collection.mutable
@@ -58,8 +59,8 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case SubscribeGridInfo() =>
       guiActors += sender()
-      val remoteAddr = RemoteAddressExtension(context.system).address
-      sender() ! WorkerAddress(self.path.toStringWithAddress(remoteAddr))
+      val remoteAddressOfGui = RemoteAddressExtension(context.system).address
+      sender() ! WorkerAddress(remoteAddressOfGui.host.toString, remoteAddressOfGui.port.toString)
 
     case StartIteration(iteration) if iteration > config.iterationsNumber =>
       logger.info("finalizing")
@@ -261,8 +262,6 @@ object WorkerActor {
   final case class MsgWrapper(id: WorkerId, value: Any)
 
   final case class SubscribeGridInfo()
-
-  final case class WorkerAddress(address: String)
 
   final case class WorkerInitialized(world: WorldShard)
 

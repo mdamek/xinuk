@@ -11,10 +11,10 @@ import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
 import pl.edu.agh.xinuk.algorithm.Metrics
 import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.gui.GuiActor.GridInfo
+import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.GridCellId
-import pl.edu.agh.xinuk.simulation.RemoteAddressExtension
-import pl.edu.agh.xinuk.simulation.WorkerActor.{MsgWrapper, SubscribeGridInfo, WorkerAddress}
+import pl.edu.agh.xinuk.simulation.WorkerActor.{MsgWrapper, SubscribeGridInfo}
 
 import scala.collection.mutable
 import scala.swing.BorderPanel.Position._
@@ -33,8 +33,6 @@ class GuiActor private(worker: ActorRef,
   private lazy val gui: GuiGrid = new GuiGrid(worldSpan, cellToColor, workerId)
 
   override def preStart(): Unit = {
-    val remoteAddr = RemoteAddressExtension(context.system).address
-    log.info("Address from Gui Actor pre start" + self.path.toStringWithAddress(remoteAddr))
     worker ! MsgWrapper(workerId, SubscribeGridInfo())
     log.info("GUI started")
   }
@@ -45,8 +43,8 @@ class GuiActor private(worker: ActorRef,
   }
 
   def started: Receive = {
-    case WorkerAddress(address) =>
-      log.info("We have address of Worker Actor! " + address)
+    case WorkerAddress(host, port) =>
+      log.info("We have address of Worker Actor! " + host + port)
 
     case GridInfo(iteration, cells, metrics) =>
       gui.setNewValues(iteration, cells)
