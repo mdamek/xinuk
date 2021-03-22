@@ -3,6 +3,10 @@ package pl.edu.agh.xinuk.gui
 import java.awt.Color
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import net.liftweb.json.Serialization.write
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest, HttpResponse}
+import net.liftweb.json.DefaultFormats
 import pl.edu.agh.xinuk.algorithm.Metrics
 import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.gui.GuiActor.GridInfo
@@ -32,7 +36,31 @@ class LedPanelGuiActor private(worker: ActorRef,
       log.info("We have address of Worker Actor! " + host + port)
 
     case GridInfo(iteration, cells, metrics) =>
-    // new values
+      updateLedPanel(iteration, cells)
+
+    case HttpResponse(code, _, _, _) =>
+      log.info("Response code: " + code)
+  }
+
+  def updateLedPanel(iteration: Long, cells: Set[Cell]): Unit = {
+    import akka.pattern.pipe
+    import context.dispatcher
+
+    val http = Http(context.system)
+
+    implicit val formats = DefaultFormats
+    val jsonString = write(cells)
+
+    print(jsonString)
+
+    val request = HttpRequest(
+      method = HttpMethods.POST,
+      uri = "http://192.168.100.199:8080/easy",
+      entity = HttpEntity(ContentTypes.`application/json`, jsonString)
+    )
+
+    http.singleRequest(request)
+      .pipeTo(self)
   }
 }
 

@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.LazyLogging
 import net.ceedubs.ficus.readers.ValueReader
 import pl.edu.agh.xinuk.algorithm.{Metrics, PlanCreator, PlanResolver, WorldCreator}
 import pl.edu.agh.xinuk.config.{GuiType, XinukConfig}
-import pl.edu.agh.xinuk.gui.GuiActor
+import pl.edu.agh.xinuk.gui.{GuiActor, LedPanelGuiActor}
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.GridWorldShard
 import pl.edu.agh.xinuk.simulation.WorkerActor
@@ -70,6 +70,8 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
           case (GuiType.None, _) =>
           case (GuiType.Grid, gridWorld: GridWorldShard) =>
             system.actorOf(GuiActor.props(workerRegionRef, workerId, gridWorld.span, cellToColor))
+          case (GuiType.LedPanel, gridWorld: GridWorldShard) =>
+            system.actorOf(LedPanelGuiActor.props(workerRegionRef, workerId, gridWorld.span, cellToColor))
           case _ => logger.warn("GUI type incompatible with World format.")
         }
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))

@@ -60,7 +60,7 @@ class WorkerActor[ConfigType <: XinukConfig](
     case SubscribeGridInfo() =>
       guiActors += sender()
       val remoteAddressOfGui = RemoteAddressExtension(context.system).address
-      sender() ! WorkerAddress(remoteAddressOfGui.host.toString, remoteAddressOfGui.port.toString)
+      sender() ! WorkerAddress(remoteAddressOfGui.host.get, remoteAddressOfGui.port.get.toString)
 
     case StartIteration(iteration) if iteration > config.iterationsNumber =>
       logger.info("finalizing")

@@ -1,7 +1,7 @@
 cancelable in Global := true
 
 val Version = new {
-  val Akka = "2.5.31"
+  val Akka = "2.5.32"
   val AkkaKryo = "1.0.0"
   val Logback = "1.2.3"
   val AvsCommons = "2.0.0-M12"
@@ -12,6 +12,8 @@ val Version = new {
   val ScalaSwing = "2.1.1"
   val JFreeChart = "1.5.0"
   val JacksonScala = "2.11.2"
+  val Http = "10.2.0"
+  val LiftJson = "3.4.0"
 }
 
 inThisBuild(Seq(
@@ -48,6 +50,7 @@ lazy val `xinuk-core` = project
       "com.typesafe.akka" %% "akka-slf4j" % Version.Akka,
       "com.typesafe.akka" %% "akka-cluster" % Version.Akka,
       "com.typesafe.akka" %% "akka-cluster-sharding" % Version.Akka,
+      "com.typesafe.akka" %% "akka-http" % Version.Http,
       "com.typesafe.scala-logging" %% "scala-logging" % Version.ScalaLogging,
       "org.scala-lang.modules" %% "scala-swing" % Version.ScalaSwing,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % Version.JacksonScala,
@@ -55,6 +58,7 @@ lazy val `xinuk-core` = project
       "org.scalatest" %% "scalatest" % Version.ScalaTest % Test,
       "com.typesafe.akka" %% "akka-testkit" % Version.Akka % Test,
       "org.mockito" % "mockito-core" % Version.Mockito % Test,
+      "net.liftweb" %% "lift-json" % Version.LiftJson
     ),
   ).disablePlugins(AssemblyPlugin)
 
