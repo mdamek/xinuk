@@ -1,6 +1,6 @@
 package pl.edu.agh.xinuk.simulation
 
-import akka.actor.{Actor, ActorRef, Props, Stash}
+import akka.actor.{Actor, ActorRef, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, ExtensionKey, Props, Stash}
 import akka.cluster.sharding.ShardRegion.{ExtractEntityId, ExtractShardId}
 import org.slf4j.{Logger, LoggerFactory, MarkerFactory}
 import pl.edu.agh.xinuk.algorithm._
@@ -12,12 +12,12 @@ import scala.collection.mutable
 import scala.util.Random
 
 class WorkerActor[ConfigType <: XinukConfig](
-  regionRef: => ActorRef,
-  planCreator: PlanCreator[ConfigType],
-  planResolver: PlanResolver[ConfigType],
-  emptyMetrics: => Metrics,
-  signalPropagation: SignalPropagation
-)(implicit config: ConfigType) extends Actor with Stash {
+                                              regionRef: => ActorRef,
+                                              planCreator: PlanCreator[ConfigType],
+                                              planResolver: PlanResolver[ConfigType],
+                                              emptyMetrics: => Metrics,
+                                              signalPropagation: SignalPropagation
+                                            )(implicit config: ConfigType) extends Actor with Stash {
 
   import pl.edu.agh.xinuk.simulation.WorkerActor._
 
@@ -58,6 +58,8 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case SubscribeGridInfo() =>
       guiActors += sender()
+      val remoteAddr = RemoteAddressExtension(context.system).address
+      sender() ! WorkerAddress(self.path.toStringWithAddress(remoteAddr))
 
     case StartIteration(iteration) if iteration > config.iterationsNumber =>
       logger.info("finalizing")
@@ -260,6 +262,8 @@ object WorkerActor {
 
   final case class SubscribeGridInfo()
 
+  final case class WorkerAddress(address: String)
+
   final case class WorkerInitialized(world: WorldShard)
 
   final case class StartIteration private(i: Long) extends AnyVal
@@ -272,4 +276,14 @@ object WorkerActor {
 
   final case class RemoteCellContents private(iteration: Long, remoteCellContents: Seq[(CellId, CellContents)])
 
+}
+
+class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
+  def address = system.provider.getDefaultAddress
+}
+
+object RemoteAddressExtension extends ExtensionId[RemoteAddressExtensionImpl]
+  with ExtensionIdProvider {
+  override def createExtension(system: ExtendedActorSystem) = new RemoteAddressExtensionImpl(system)
+  override def lookup(): ExtensionId[_ <: Extension] = RemoteAddressExtension
 }
