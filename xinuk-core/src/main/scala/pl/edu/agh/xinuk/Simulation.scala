@@ -71,7 +71,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
           case (GuiType.Grid, gridWorld: GridWorldShard) =>
             system.actorOf(GuiActor.props(workerRegionRef, workerId, gridWorld.span, cellToColor))
           case (GuiType.LedPanel, gridWorld: GridWorldShard) =>
-            system.actorOf(LedPanelGuiActor.props(workerRegionRef, workerId, gridWorld.span, cellToColor))
+            system.actorOf(LedPanelGuiActor.props(workerRegionRef, workerId, gridWorld.span, cellToColor, config.ledPanelPort))
           case _ => logger.warn("GUI type incompatible with World format.")
         }
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))

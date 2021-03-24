@@ -19,7 +19,8 @@ import scala.util.Random
 class LedPanelGuiActor private(worker: ActorRef,
                                workerId: WorkerId,
                                worldSpan: ((Int, Int), (Int, Int)),
-                               cellToColor: PartialFunction[CellState, Color])
+                               cellToColor: PartialFunction[CellState, Color],
+                               ledPanelPort: String)
                               (implicit config: XinukConfig) extends Actor with ActorLogging {
 
   override def receive: Receive = started
@@ -35,8 +36,7 @@ class LedPanelGuiActor private(worker: ActorRef,
 
   def started: Receive = {
     case WorkerAddress(host, port) =>
-      connectedLedPanelHost = host
-      connectedLedPanelPort = port
+      //connectedLedPanelHost = host
       log.info("We have address of Worker Actor! " + host + port)
 
     case GridInfo(iteration, cells, metrics) =>
@@ -48,8 +48,8 @@ class LedPanelGuiActor private(worker: ActorRef,
 
   private val obstacleColor = new swing.Color(0, 0, 0)
   private val emptyColor = new swing.Color(255, 255, 255)
-  private var connectedLedPanelHost = ""
-  private var connectedLedPanelPort = ""
+  private var connectedLedPanelHost = "192.168.100.180"
+  private var connectedLedPanelPort = ledPanelPort
 
 
   private def defaultColor: CellState => Color =
@@ -82,7 +82,7 @@ class LedPanelGuiActor private(worker: ActorRef,
 
     val request = HttpRequest(
       method = HttpMethods.POST,
-      uri = "http://192.168.100.200:8080/easy",
+      uri = s"http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration",
       entity = HttpEntity(ContentTypes.`application/json`,
         write(Iteration(iteration.toInt, points)))
     )
@@ -97,9 +97,9 @@ object LedPanelGuiActor {
   final case class GridInfo private(iteration: Long, cells: Set[Cell], metrics: Metrics)
   final case class WorkerAddress private(host: String, port: String)
 
-  def props(worker: ActorRef, workerId: WorkerId, worldSpan: ((Int, Int), (Int, Int)), cellToColor: PartialFunction[CellState, Color])
+  def props(worker: ActorRef, workerId: WorkerId, worldSpan: ((Int, Int), (Int, Int)), cellToColor: PartialFunction[CellState, Color], ledPanelPort: String)
            (implicit config: XinukConfig): Props = {
-    Props(new LedPanelGuiActor(worker, workerId, worldSpan, cellToColor))
+    Props(new LedPanelGuiActor(worker, workerId, worldSpan, cellToColor, ledPanelPort))
   }
 }
 case class Iteration(iteration: Int, points: Set[Any])
