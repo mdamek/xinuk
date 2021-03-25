@@ -36,8 +36,8 @@ class LedPanelGuiActor private(worker: ActorRef,
 
   def started: Receive = {
     case WorkerAddress(host, port) =>
-      //connectedLedPanelHost = host
-      log.info("We have address of Worker Actor! " + host + port)
+      connectedLedPanelHost = host
+      log.info("We have address of Worker Actor! " + host + ":" + port)
 
     case GridInfo(iteration, cells, metrics) =>
       updateLedPanel(iteration, cells)
