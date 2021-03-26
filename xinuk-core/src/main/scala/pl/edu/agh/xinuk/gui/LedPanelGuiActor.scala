@@ -1,7 +1,6 @@
 package pl.edu.agh.xinuk.gui
 
 import java.awt.Color
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest, HttpResponse}
@@ -46,10 +45,12 @@ class LedPanelGuiActor private(worker: ActorRef,
       log.info("Response code: " + code)
   }
 
+  private val ((xOffset, yOffset), (xSize, ySize)) = worldSpan
   private val obstacleColor = new swing.Color(0, 0, 0)
   private val emptyColor = new swing.Color(255, 255, 255)
-  private var connectedLedPanelHost = "192.168.100.180"
+  private var connectedLedPanelHost = ""
   private var connectedLedPanelPort = ledPanelPort
+
 
 
   private def defaultColor: CellState => Color =
@@ -74,7 +75,7 @@ class LedPanelGuiActor private(worker: ActorRef,
     val points = cells map {
       case Cell(GridCellId(x, y), state) =>
         val color: Color = cellToColor.applyOrElse(state, defaultColor)
-        Point(x, y, RgbColor(color.getRed, color.getGreen, color.getBlue))
+        Point(x - xOffset, y - yOffset, RgbColor(color.getRed, color.getGreen, color.getBlue))
       case _ =>
     }
 
