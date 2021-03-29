@@ -72,10 +72,12 @@ class LedPanelGuiActor private(worker: ActorRef,
 
     val http = Http(context.system)
 
-    val points = cells map {
+    val pointsMatrix = Array.ofDim[Int](xSize, ySize)
+
+    cells foreach {
       case Cell(GridCellId(x, y), state) =>
         val color: Color = cellToColor.applyOrElse(state, defaultColor)
-        Point(x - xOffset, y - yOffset, RgbColor(color.getRed, color.getGreen, color.getBlue))
+        pointsMatrix(x - xOffset)(y - yOffset) = color.getRGB
       case _ =>
     }
 
@@ -85,7 +87,7 @@ class LedPanelGuiActor private(worker: ActorRef,
       method = HttpMethods.POST,
       uri = s"http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration",
       entity = HttpEntity(ContentTypes.`application/json`,
-        write(Iteration(iteration.toInt, points)))
+        write(Iteration(iteration.toInt, pointsMatrix)))
     )
 
     http.singleRequest(request)
@@ -103,6 +105,4 @@ object LedPanelGuiActor {
     Props(new LedPanelGuiActor(worker, workerId, worldSpan, cellToColor, ledPanelPort))
   }
 }
-case class Iteration(iteration: Int, points: Set[Any])
-case class Point(x: Int, y: Int, colorRGB: RgbColor)
-case class RgbColor(r: Int, g:Int, b:Int)
+case class Iteration(iteration: Int, points:  Array[Array[Int]])
