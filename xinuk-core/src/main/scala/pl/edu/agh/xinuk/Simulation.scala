@@ -3,9 +3,7 @@ package pl.edu.agh.xinuk
 import java.awt.Color
 import java.io.File
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
-import akka.cluster.sharding.ShardCoordinator.ShardAllocationStrategy
-import akka.cluster.sharding.ShardRegion.ShardId
+import akka.actor.{ActorRef, ActorSystem}
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import com.typesafe.scalalogging.LazyLogging
@@ -17,8 +15,6 @@ import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.GridWorldShard
 import pl.edu.agh.xinuk.simulation.WorkerActor
 
-import scala.collection.immutable
-import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 class Simulation[ConfigType <: XinukConfig : ValueReader](
@@ -57,20 +53,13 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     }
   }
 
-
-  val ownShardingStrategy: OwnStrategy = new OwnStrategy(ClusterShardingSettings(system).tuningParameters.leastShardAllocationRebalanceThreshold,
-    ClusterShardingSettings(system).tuningParameters.leastShardAllocationMaxSimultaneousRebalance)
-
   private val workerRegionRef: ActorRef =
     ClusterSharding(system).start(
       typeName = WorkerActor.Name,
       entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation),
       settings = ClusterShardingSettings(system),
       extractShardId = WorkerActor.extractShardId,
-      extractEntityId = WorkerActor.extractEntityId,
-      allocationStrategy = ownShardingStrategy,
-      handOffStopMessage = PoisonPill
-
+      extractEntityId = WorkerActor.extractEntityId
     )
 
   def start(): Unit = {
@@ -93,38 +82,3 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
 
   private def logHeader: String = s"worker:${metricHeaders.mkString(";")}"
 }
-
-class OwnStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance: Int)
-  extends ShardAllocationStrategy
-    with Serializable {
-  override def allocateShard(
-                              requester: ActorRef,
-                              shardId: ShardId,
-                              currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]]): Future[ActorRef] = {
-    val (regionWithLeastShards, _) = currentShardAllocations.minBy { case (s, v) => v.size & s.path.address.hashCode }
-
-    Future.successful(regionWithLeastShards)
-  }
-
-  override def rebalance(
-                          currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]],
-                          rebalanceInProgress: Set[ShardId]): Future[Set[ShardId]] = {
-    if (rebalanceInProgress.size < maxSimultaneousRebalance) {
-      val (_, leastShards) = currentShardAllocations.minBy { case (_, v) => v.size }
-      val mostShards = currentShardAllocations
-        .collect {
-          case (_, v) => v.filterNot(s => rebalanceInProgress(s))
-        }
-        .maxBy(_.size)
-      val difference = mostShards.size - leastShards.size
-      if (difference > rebalanceThreshold) {
-        val n = math.min(
-          math.min(difference - rebalanceThreshold, rebalanceThreshold),
-          maxSimultaneousRebalance - rebalanceInProgress.size)
-        Future.successful(mostShards.sorted.take(n).toSet)
-      } else
-        Future.successful(Set.empty[ShardId])
-    } else Future.successful(Set.empty[ShardId])
-  }
-}
-
