@@ -8,12 +8,15 @@ trait XinukConfig {
   def worldWidth: Int
   def worldHeight: Int
   def iterationsNumber: Long
+  def iterationFinishedLogFrequency: Long
+  def skipEmptyLogs: Boolean
 
   def signalSuppressionFactor: Double
   def signalAttenuationFactor: Double
-  def signalSpeedRatio: Int
+  def signalDisabled: Boolean
 
-  def workersRoot: Int
+  def workersX: Int
+  def workersY: Int
   def isSupervisor: Boolean
   def shardingMod: Int
 
@@ -21,6 +24,8 @@ trait XinukConfig {
 
   def guiType: GuiType
   def guiCellSize: Int
+  def guiStartIteration: Long
+  def guiUpdateFrequency: Long
 }
 
 sealed trait GuiType extends NamedEnum
@@ -37,7 +42,16 @@ object GuiType extends AbstractNamedEnumCompanion[GuiType] {
     override def name: String = "grid"
   }
 
+
   case object LedPanel extends GuiType {
     override def name: String ="ledPanel"
+  }
+
+  case object Snapshot extends GuiType {
+    override def name: String = "snapshot"
+  }
+
+  case object SplitSnapshot extends GuiType {
+    override def name: String = "splitSnapshot"
   }
 }

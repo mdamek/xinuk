@@ -7,17 +7,22 @@ final case class MockConfig(worldType: WorldType,
                             worldWidth: Int,
                             worldHeight: Int,
                             iterationsNumber: Long,
+                            iterationFinishedLogFrequency: Long,
+                            skipEmptyLogs: Boolean,
 
                             signalSuppressionFactor: Double,
                             signalAttenuationFactor: Double,
-                            signalSpeedRatio: Int,
+                            signalDisabled: Boolean,
 
-                            workersRoot: Int,
+                            workersX: Int,
+                            workersY: Int,
                             isSupervisor: Boolean,
                             shardingMod: Int,
 
                             guiType: GuiType,
                             guiCellSize: Int,
+                            guiStartIteration: Long,
+                            guiUpdateFrequency: Long,
                             ledPanelPort: String,
 
                             mockInitialSignal: Signal

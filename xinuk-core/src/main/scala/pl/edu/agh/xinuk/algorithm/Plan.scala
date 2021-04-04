@@ -1,59 +1,65 @@
 package pl.edu.agh.xinuk.algorithm
 
-import pl.edu.agh.xinuk.model.{CellContents, CellId, Direction}
+import pl.edu.agh.xinuk.model.{CellId, Direction}
 
-final case class StateUpdate(updateTag: UpdateTag, value: CellContents)
-
-object StateUpdate {
-  def apply(value: CellContents): StateUpdate = new StateUpdate(UpdateTag.Default, value)
-}
-
-trait UpdateTag {
-  def apply(contents: CellContents): StateUpdate = StateUpdate(this, contents)
-}
-
-object UpdateTag {
-
-  case object Default extends UpdateTag
-
-}
+trait Update
 
 /*
- * action:      StateUpdate to be validated against current state of target cell and applied to it or rejected
- * consequence: StateUpdate to be applied to the source cell if action is applied
- * alternative: StateUpdate to be applied to the source cell if action is rejected
+ * action:      Update to be validated against current state of target cell and applied to it or rejected
+ * consequence: optional Update to be applied to the source cell if action is applied
+ * alternative: optional Update to be applied to the source cell if action is rejected
  */
-final case class Plan(action: StateUpdate, consequence: Option[StateUpdate], alternative: Option[StateUpdate]) {
-  def toTargeted(actionTarget: CellId, consequenceTarget: CellId, alternativeTarget: CellId): TargetedPlan =
+final case class Plan(action: Update, consequence: Option[Update], alternative: Option[Update]) {
+  def toTargeted(planSource: CellId, actionTarget: CellId, consequenceTarget: CellId, alternativeTarget: CellId): TargetedPlan =
     TargetedPlan(
-      TargetedStateUpdate(actionTarget, action),
-      consequence.map(TargetedStateUpdate(consequenceTarget, _)),
-      alternative.map(TargetedStateUpdate(alternativeTarget, _))
+      TargetedUpdate(actionTarget, planSource, action),
+      consequence.map(TargetedUpdate(consequenceTarget, planSource, _)),
+      alternative.map(TargetedUpdate(alternativeTarget, planSource, _))
     )
 }
 
 object Plan {
-  def apply(action: StateUpdate, consequence: StateUpdate, alternative: StateUpdate): Plan =
+  def apply(action: Update, consequence: Update, alternative: Update): Plan =
     Plan(action, Some(consequence), Some(alternative))
 
-  def apply(action: StateUpdate, consequence: StateUpdate): Plan =
+  def apply(action: Update, consequence: Update): Plan =
     Plan(action, Some(consequence), None)
 
-  def apply(action: StateUpdate): Plan = {
+  def apply(action: Update): Plan = {
     Plan(action, None, None)
   }
 }
 
-final case class Plans(outwardsPlans: Map[Direction, Seq[Plan]], localPlans: Seq[Plan])
+final case class Plans(plans: Seq[(Option[Direction], Plan)] = Seq.empty) {
+  def ++(other: Plans): Plans = {
+    Plans(plans ++ other.plans)
+  }
 
-object Plans {
-  def empty: Plans = Empty
+  def :+(plan: (Option[Direction], Plan)): Plans = {
+    Plans(plans :+ plan)
+  }
 
-  private def Empty: Plans = Plans(Map.empty, Seq.empty)
+  def outwardsPlans: Map[Direction, Seq[Plan]] = {
+    plans.filter(_._1.isDefined)
+      .map { case (dirOpt, plan) => (dirOpt.get, plan) }
+      .groupBy(_._1)
+      .map {case (dir, groups) => (dir, groups.map(_._2)) }
+  }
 
-  def apply(outwardsPlans: Map[Direction, Seq[Plan]]): Plans = new Plans(outwardsPlans, Seq.empty)
+  def localPlans: Seq[Plan] = {
+    plans.filter(_._1.isEmpty)
+      .map(_._2)
+  }
 }
 
-final case class TargetedStateUpdate(target: CellId, update: StateUpdate)
+object Plans {
+  private val Empty: Plans = Plans()
 
-final case class TargetedPlan(action: TargetedStateUpdate, consequence: Option[TargetedStateUpdate], alternative: Option[TargetedStateUpdate])
+  def empty: Plans = Empty
+
+  def apply(plan: (Option[Direction], Plan)): Plans = new Plans(Seq(plan))
+}
+
+final case class TargetedUpdate(target: CellId, source: CellId, update: Update)
+
+final case class TargetedPlan(action: TargetedUpdate, consequence: Option[TargetedUpdate], alternative: Option[TargetedUpdate])

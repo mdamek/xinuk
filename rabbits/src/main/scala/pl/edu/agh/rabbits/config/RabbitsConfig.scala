@@ -3,6 +3,9 @@ package pl.edu.agh.rabbits.config
 import pl.edu.agh.xinuk.config.{GuiType, XinukConfig}
 import pl.edu.agh.xinuk.model.{Signal, WorldType}
 
+import java.security.SecureRandom
+import scala.util.Random
+
 /*
 SC - spawn chance, SC ∈ [0,1] && SC ∈ R
 RSC - rabbit spawn chance; RSC ∈ N.
@@ -24,17 +27,22 @@ final case class RabbitsConfig(
                                 worldWidth: Int,
                                 worldHeight: Int,
                                 iterationsNumber: Long,
+                                iterationFinishedLogFrequency: Long,
+                                skipEmptyLogs: Boolean,
 
                                 signalSuppressionFactor: Double,
                                 signalAttenuationFactor: Double,
-                                signalSpeedRatio: Int,
+                                signalDisabled: Boolean,
 
-                                workersRoot: Int,
+                                workersX: Int,
+                                workersY: Int,
                                 isSupervisor: Boolean,
                                 shardingMod: Int,
 
                                 guiType: GuiType,
                                 guiCellSize: Int,
+                                guiStartIteration: Long,
+                                guiUpdateFrequency: Long,
 
                                 spawnChance: Double,
                                 rabbitSpawnChance: Double,
@@ -49,4 +57,6 @@ final case class RabbitsConfig(
 
                                 lettuceEnergeticCapacity: Double,
                                 lettuceReproductionFrequency: Int,
-                              ) extends XinukConfig
+                              ) extends XinukConfig {
+  val random: Random = new SecureRandom
+}

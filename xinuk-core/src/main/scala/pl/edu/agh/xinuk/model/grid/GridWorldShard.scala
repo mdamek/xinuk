@@ -16,7 +16,7 @@ final class GridWorldShard(val cells: Map[CellId, Cell],
 
   private val localCellIdsSet: Set[CellId] = cells.keys.filter(k => cellToWorker(k) == workerId).toSet
 
-  def span: ((Int, Int), (Int, Int)) = {
+  def bounds: GridWorldShard.Bounds = {
     val coords = localCellIds.map { case GridCellId(x, y) => (x, y) }
     val xMin = coords.map(_._1).min
     val xMax = coords.map(_._1).max
@@ -24,7 +24,7 @@ final class GridWorldShard(val cells: Map[CellId, Cell],
     val yMin = coords.map(_._2).min
     val yMax = coords.map(_._2).max
     val ySize = yMax - yMin + 1
-    ((xMin, yMin), (xSize, ySize))
+    GridWorldShard.Bounds(xMin, yMin, xSize, ySize)
   }
 
   override def localCellIds: Set[CellId] = localCellIdsSet
@@ -38,13 +38,25 @@ object GridWorldShard {
             incomingCells: Map[WorkerId, Set[CellId]],
             cellToWorker: Map[CellId, WorkerId])(implicit config: XinukConfig): GridWorldShard =
     new GridWorldShard(cells, cellNeighbours, workerId, outgoingCells, incomingCells, cellToWorker)(config)
+
+  case class Bounds(xMin: Int, yMin: Int, xSize: Int, ySize: Int)
 }
 
 case class GridWorldBuilder()(implicit config: XinukConfig) extends WorldBuilder {
 
   import scala.collection.mutable.{Map => MutableMap}
 
-  private val cellsMutable: MutableMap[CellId, Cell] = MutableMap.empty.withDefault(id => Cell.empty(id))
+  private val cellsMutable: MutableMap[CellId, Cell] = {
+    val builder = MutableMap.newBuilder[CellId, Cell]
+    builder.sizeHint(config.worldWidth * config.worldHeight)
+    builder.addAll(for {
+      x <- 0 until xSize
+      y <- 0 until ySize
+      id = GridCellId(x, y)
+    } yield {
+      id -> Cell.empty(id)
+    }).result()
+  }
   private val neighboursMutable: MutableMap[CellId, MutableMap[Direction, CellId]] = MutableMap.empty.withDefault(_ => MutableMap.empty)
 
   override def apply(cellId: CellId): Cell = cellsMutable(cellId)
@@ -113,16 +125,15 @@ case class GridWorldBuilder()(implicit config: XinukConfig) extends WorldBuilder
     }.toMap
 
     workerDomains.map({ case (workerId, (localIds, remoteIds)) =>
-
       val cells = (localIds ++ remoteIds).map { id => (id, cellsMutable(id)) }.toMap
 
-      val neighboursOfLocal = neighboursMutable
-        .filter { case (id, _) => localIds.contains(id) }
-        .map { case (id, cellNeighbours) => (id, cellNeighbours.toMap) }
+      val neighboursOfLocal = localIds
+        .map { id => id -> neighboursMutable(id)}
+        .map { case (id, cellNeighbours) => id -> cellNeighbours.toMap }
         .toMap
 
-      val neighboursOfRemote = neighboursMutable
-        .filter { case (id, _) => remoteIds.contains(id) }
+      val neighboursOfRemote = remoteIds
+        .map { id => id -> neighboursMutable(id) }
         .map { case (id, cellNeighbours) => (id, cellNeighbours.filter { case(_, nId) => localIds.contains(nId) }.toMap) }
         .toMap
 
@@ -132,15 +143,15 @@ case class GridWorldBuilder()(implicit config: XinukConfig) extends WorldBuilder
 
       val incomingCells = globalIncomingCells(workerId)
 
-      val cellToWorker = globalCellToWorker.filter({ case (id, _) => localIds.contains(id) || remoteIds.contains(id) })
+      val cellToWorker = cells.keys.map {id => id -> globalCellToWorker(id)}.toMap
 
       (workerId, GridWorldShard(cells, neighbours, workerId, outgoingCells, incomingCells, cellToWorker))
     })
   }
 
   private def divide(): Map[WorkerId, (Set[CellId], Set[CellId])] = {
-    val xWorkerCount = config.workersRoot
-    val yWorkerCount = config.workersRoot
+    val xWorkerCount = config.workersX
+    val yWorkerCount = config.workersY
 
     val xSizes = split(xSize, xWorkerCount)
     val ySizes = split(ySize, yWorkerCount)
