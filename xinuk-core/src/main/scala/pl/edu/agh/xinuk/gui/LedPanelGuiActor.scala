@@ -1,24 +1,24 @@
 package pl.edu.agh.xinuk.gui
 
 import java.awt.Color
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest, HttpResponse}
 import net.liftweb.json.DefaultFormats
 import pl.edu.agh.xinuk.algorithm.Metrics
 import pl.edu.agh.xinuk.config.XinukConfig
-import pl.edu.agh.xinuk.gui.GuiActor.GridInfo
 import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
 import pl.edu.agh.xinuk.model._
-import pl.edu.agh.xinuk.model.grid.GridCellId
-import pl.edu.agh.xinuk.simulation.WorkerActor.{MsgWrapper, SubscribeGridInfo}
+import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldShard}
+import pl.edu.agh.xinuk.simulation.WorkerActor.{GridInfo, MsgWrapper, SubscribeGridInfo}
 
 import scala.util.Random
 
 class LedPanelGuiActor private(worker: ActorRef,
+                               simulationId: String,
                                workerId: WorkerId,
-                               worldSpan: ((Int, Int), (Int, Int)),
-                               cellToColor: PartialFunction[CellState, Color],
+                               bounds: GridWorldShard.Bounds,
                                ledPanelPort: String)
                               (implicit config: XinukConfig) extends Actor with ActorLogging {
 
@@ -45,12 +45,11 @@ class LedPanelGuiActor private(worker: ActorRef,
       log.info("Response code: " + code)
   }
 
-  private val ((xOffset, yOffset), (xSize, ySize)) = worldSpan
+  private val (xOffset, yOffset, xSize, ySize) = (bounds.xMin, bounds.yMin, bounds.xSize, bounds.ySize)
   private val obstacleColor = new swing.Color(0, 0, 0)
   private val emptyColor = new swing.Color(255, 255, 255)
   private var connectedLedPanelHost = ""
   private var connectedLedPanelPort = ledPanelPort
-
 
 
   private def defaultColor: CellState => Color =
@@ -65,7 +64,7 @@ class LedPanelGuiActor private(worker: ActorRef,
         Color.getHSBColor(hue, saturation, luminance)
     }
 
-  def updateLedPanel(iteration: Long, cells: Set[Cell]): Unit = {
+  def updateLedPanel(iteration: Long, cells: Map[CellId, Color]): Unit = {
     import akka.pattern.pipe
     import context.dispatcher
     import net.liftweb.json.Serialization.write
@@ -75,8 +74,7 @@ class LedPanelGuiActor private(worker: ActorRef,
     val pointsMatrix = Array.ofDim[Int](xSize, ySize)
 
     cells foreach {
-      case Cell(GridCellId(x, y), state) =>
-        val color: Color = cellToColor.applyOrElse(state, defaultColor)
+      case (GridCellId(x, y), color) =>
         pointsMatrix(x - xOffset)(y - yOffset) = color.getRGB
       case _ =>
     }
@@ -98,11 +96,13 @@ class LedPanelGuiActor private(worker: ActorRef,
 object LedPanelGuiActor {
 
   final case class GridInfo private(iteration: Long, cells: Set[Cell], metrics: Metrics)
+
   final case class WorkerAddress private(host: String, port: String)
 
-  def props(worker: ActorRef, workerId: WorkerId, worldSpan: ((Int, Int), (Int, Int)), cellToColor: PartialFunction[CellState, Color], ledPanelPort: String)
+  def props(worker: ActorRef, simulationId: String, workerId: WorkerId, bounds: GridWorldShard.Bounds, ledPanelPort: String)
            (implicit config: XinukConfig): Props = {
-    Props(new LedPanelGuiActor(worker, workerId, worldSpan, cellToColor, ledPanelPort))
+    Props(new LedPanelGuiActor(worker, simulationId, workerId, bounds, ledPanelPort))
   }
 }
-case class Iteration(iteration: Int, points:  Array[Array[Int]])
+
+case class Iteration(iteration: Int, points: Array[Array[Int]])

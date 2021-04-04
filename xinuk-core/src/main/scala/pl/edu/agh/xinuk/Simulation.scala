@@ -18,15 +18,15 @@ import pl.edu.agh.xinuk.simulation.WorkerActor
 import scala.util.{Failure, Success, Try}
 
 class Simulation[ConfigType <: XinukConfig : ValueReader](
-  configPrefix: String,
-  metricHeaders: Vector[String],
-  worldCreator: WorldCreator[ConfigType],
-  planCreatorFactory: () => PlanCreator[ConfigType],
-  planResolverFactory: () => PlanResolver[ConfigType],
-  emptyMetrics: => Metrics,
-  signalPropagation: SignalPropagation,
-  cellToColor: PartialFunction[CellState, Color] = PartialFunction.empty
-) extends LazyLogging {
+                                                           configPrefix: String,
+                                                           metricHeaders: Vector[String],
+                                                           worldCreator: WorldCreator[ConfigType],
+                                                           planCreatorFactory: () => PlanCreator[ConfigType],
+                                                           planResolverFactory: () => PlanResolver[ConfigType],
+                                                           emptyMetrics: => Metrics,
+                                                           signalPropagation: SignalPropagation,
+                                                           cellToColor: PartialFunction[CellState, Color] = PartialFunction.empty
+                                                         ) extends LazyLogging {
 
   private val rawConfig: Config =
     Try(ConfigFactory.parseFile(new File("xinuk.conf")))
@@ -68,25 +68,28 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
       val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
       val simulationId: String = UUID.randomUUID().toString
 
-      workerToWorld.foreach( { case (workerId, world) =>
+      workerToWorld.foreach({ case (workerId, world) =>
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
       })
 
       (config.guiType, config.worldType) match {
         case (GuiType.None, _) =>
         case (GuiType.Grid, GridWorldType) =>
-          workerToWorld.foreach( { case (workerId, world) =>
+          workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(GridGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
           })
         case (GuiType.SplitSnapshot, GridWorldType) =>
-          workerToWorld.foreach( { case (workerId, world) =>
+          workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(SplitSnapshotActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
           })
         case (GuiType.Snapshot, GridWorldType) =>
           system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
+        case (GuiType.LedPanel, GridWorldType) =>
+          workerToWorld.foreach({ case (workerId, world) =>
+            system.actorOf(LedPanelGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
+          })
         case _ => logger.warn("GUI type not recognized or incompatible with World format.")
-        case (GuiType.LedPanel, gridWorld: GridWorldShard) =>
-          system.actorOf(LedPanelGuiActor.props(workerRegionRef, workerId, gridWorld.span, cellToColor, config.ledPanelPort))
+
       }
     }
   }
