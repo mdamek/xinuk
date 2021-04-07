@@ -13,8 +13,6 @@ import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldShard}
 import pl.edu.agh.xinuk.simulation.WorkerActor.{GridInfo, MsgWrapper, SubscribeGridInfo}
 
-import scala.util.Random
-
 class LedPanelGuiActor private(worker: ActorRef,
                                simulationId: String,
                                workerId: WorkerId,
@@ -46,23 +44,8 @@ class LedPanelGuiActor private(worker: ActorRef,
   }
 
   private val (xOffset, yOffset, xSize, ySize) = (bounds.xMin, bounds.yMin, bounds.xSize, bounds.ySize)
-  private val obstacleColor = new swing.Color(0, 0, 0)
-  private val emptyColor = new swing.Color(255, 255, 255)
   private var connectedLedPanelHost = ""
   private var connectedLedPanelPort = ledPanelPort
-
-
-  private def defaultColor: CellState => Color =
-    state => state.contents match {
-      case Obstacle => obstacleColor
-      case Empty => emptyColor
-      case other =>
-        val random = new Random(other.getClass.hashCode())
-        val hue = random.nextFloat()
-        val saturation = 1.0f
-        val luminance = 0.6f
-        Color.getHSBColor(hue, saturation, luminance)
-    }
 
   def updateLedPanel(iteration: Long, cells: Map[CellId, Color]): Unit = {
     import akka.pattern.pipe
