@@ -33,7 +33,7 @@ class LedPanelGuiActor private(worker: ActorRef,
 
   def started: Receive = {
     case WorkerAddress(host, port) =>
-      connectedLedPanelHost = host
+      //connectedLedPanelHost = host
       log.info("Address of local work actor: " + host + ":" + port)
 
     case GridInfo(iteration, cells, metrics) =>
@@ -44,7 +44,7 @@ class LedPanelGuiActor private(worker: ActorRef,
   }
 
   private val (xOffset, yOffset, xSize, ySize) = (bounds.xMin, bounds.yMin, bounds.xSize, bounds.ySize)
-  private var connectedLedPanelHost = ""
+  private var connectedLedPanelHost = "127.0.0.1"
   private var connectedLedPanelPort = ledPanelPort
 
   def updateLedPanel(iteration: Long, cells: Map[CellId, Color]): Unit = {
