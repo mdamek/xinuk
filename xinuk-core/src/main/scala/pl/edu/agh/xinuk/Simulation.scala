@@ -127,15 +127,14 @@ class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance
 
     val order: List[String] = List("192.168.100.251", "192.168.100.180", "192.168.100.185", "192.168.100.251")
     val targetHost = order(shardId.toInt - 1)
-    currentShardAllocations.foreach(sa => {
-      if (sa._1.path.address.host.get == targetHost) {
-        logger.info("SELECTED: " + sa._1.path.address.host.get)
-        Future.successful(sa._1)
-      }
-    })
-    val localHost = currentShardAllocations.filter(a => a._1.path.address.host.isEmpty).head
-    logger.info("SELECTED localhost")
-    Future.successful(localHost._1)
+    var selectedRegion: ActorRef = ActorRef.noSender
+    var remoteHosts = currentShardAllocations.map(sa => sa._1.path.address.host).filter(h => h.isDefined).map(d => d.get).toList
+    if (remoteHosts.contains(targetHost)) {
+      selectedRegion = currentShardAllocations.filter(c => c._1.path.address.host.isDefined && c._1.path.address.host.get == targetHost).head._1
+    } else {
+      selectedRegion = currentShardAllocations.filter(c => c._1.path.address.host.isEmpty).head._1
+    }
+    Future.successful(selectedRegion)
   }
 
   override def rebalance(
