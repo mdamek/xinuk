@@ -23,6 +23,7 @@ final case class TorchConfig(worldType: WorldType,
                              guiType: GuiType,
                              guiStartIteration: Long,
                              guiUpdateFrequency: Long,
+                             ledPanelPort: String,
 
                              spawnChance: Double,
                              personSpawnChance: Double,

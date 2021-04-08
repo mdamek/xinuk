@@ -43,6 +43,7 @@ final case class RabbitsConfig(
                                 guiCellSize: Int,
                                 guiStartIteration: Long,
                                 guiUpdateFrequency: Long,
+                                ledPanelPort: String,
 
                                 spawnChance: Double,
                                 rabbitSpawnChance: Double,

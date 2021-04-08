@@ -24,6 +24,7 @@ final case class FortwistConfig(
                                  guiCellSize: Int,
                                  guiStartIteration: Long,
                                  guiUpdateFrequency: Long,
+                                 ledPanelPort: String,
 
                                  foraminiferaSpawnChance: Double,
 
