@@ -130,7 +130,7 @@ class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance
     currentShardAllocations.foreach(sa => {
       if (sa._1.path.address.host.get == targetHost) {
         logger.info("SELECTED: " + sa._1.path.address.host.get)
-        return Future.successful(sa._1)
+        Future.successful(sa._1)
       }
     })
     val localHost = currentShardAllocations.filter(a => a._1.path.address.host.isEmpty).head
