@@ -4,12 +4,10 @@ import java.awt.Color
 import java.io.File
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorSystem, Address, PoisonPill}
-import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.cluster.sharding.ShardCoordinator.ShardAllocationStrategy
-import akka.cluster.sharding.ShardRegion.{ClusterShardingStats, GetClusterShardingStats, GetShardRegionStats, ShardId}
-import akka.pattern.AskTimeoutException
-import akka.util.Timeout
+import akka.cluster.sharding.ShardRegion.ShardId
+import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import net.ceedubs.ficus.readers.ValueReader
@@ -21,8 +19,7 @@ import pl.edu.agh.xinuk.model.grid.{GridWorldShard, GridWorldType}
 import pl.edu.agh.xinuk.simulation.WorkerActor
 
 import scala.collection.immutable
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.{FiniteDuration, SECONDS}
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 class Simulation[ConfigType <: XinukConfig : ValueReader](
@@ -76,7 +73,6 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     handOffStopMessage = PoisonPill
   )
 
-
   def start(): Unit = {
     if (config.isSupervisor) {
       val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
@@ -86,15 +82,12 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
       })
 
-
       (config.guiType, config.worldType) match {
         case (GuiType.None, _) =>
         case (GuiType.Grid, GridWorldType) =>
           workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(GridGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
           })
-
-
         case (GuiType.SplitSnapshot, GridWorldType) =>
           workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(SplitSnapshotActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
@@ -106,15 +99,9 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
             system.actorOf(LedPanelGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
           })
         case _ => logger.warn("GUI type not recognized or incompatible with World format.")
-
       }
     }
-
-
   }
-
-  ShardRegion.GetShardRegionStats
-
   private def logHeader: String = s"worker:iteration;activeTime;waitingTime;${metricHeaders.mkString(";")}"
 }
 
@@ -124,14 +111,15 @@ class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance
                               requester: ActorRef,
                               shardId: ShardId,
                               currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]]): Future[ActorRef] = {
-
-    val order: List[String] = List("192.168.100.251", "192.168.100.180", "192.168.100.185", "192.168.100.251")
+    val order: List[String] = List("192.168.100.180", "192.168.100.185", "192.168.100.192", "192.168.100.191")
     val targetHost = order(shardId.toInt - 1)
     var selectedRegion: ActorRef = ActorRef.noSender
-    var remoteHosts = currentShardAllocations.map(sa => sa._1.path.address.host).filter(h => h.isDefined).map(d => d.get).toList
+    val remoteHosts = currentShardAllocations.map(sa => sa._1.path.address.host).filter(h => h.isDefined).map(d => d.get).toList
     if (remoteHosts.contains(targetHost)) {
+      logger.info("Selected node for shard " + shardId + " : " + targetHost)
       selectedRegion = currentShardAllocations.filter(c => c._1.path.address.host.isDefined && c._1.path.address.host.get == targetHost).head._1
     } else {
+      logger.info("Selected node for shard " + shardId + " : local node")
       selectedRegion = currentShardAllocations.filter(c => c._1.path.address.host.isEmpty).head._1
     }
     Future.successful(selectedRegion)
