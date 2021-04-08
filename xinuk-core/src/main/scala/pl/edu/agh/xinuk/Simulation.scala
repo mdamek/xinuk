@@ -18,6 +18,7 @@ import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.{GridWorldShard, GridWorldType}
 import pl.edu.agh.xinuk.simulation.WorkerActor
 
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -60,8 +61,11 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
 
   private val system = ActorSystem(rawConfig.getString("application.name"), rawConfig)
 
-  private val customAllocationStrategy = new CustomAllocationStrategy(ClusterShardingSettings(system).tuningParameters.leastShardAllocationRebalanceThreshold,
-    ClusterShardingSettings(system).tuningParameters.leastShardAllocationMaxSimultaneousRebalance, logger)
+  private val customAllocationStrategy = new CustomAllocationStrategy(
+    ClusterShardingSettings(system).tuningParameters.leastShardAllocationRebalanceThreshold,
+    ClusterShardingSettings(system).tuningParameters.leastShardAllocationMaxSimultaneousRebalance,
+    logger,
+    rawConfig.getStringList("shard-allocation-order").asScala.toList)
 
   private val workerRegionRef: ActorRef = ClusterSharding(system).start(
     typeName = WorkerActor.Name,
@@ -102,16 +106,20 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
       }
     }
   }
+
   private def logHeader: String = s"worker:iteration;activeTime;waitingTime;${metricHeaders.mkString(";")}"
 }
 
-class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance: Int, logger: Logger) extends ShardAllocationStrategy
+class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance: Int, logger: Logger,
+                               shardAllocationOrder: List[String]) extends ShardAllocationStrategy
   with Serializable {
+
+  val order: List[String] = shardAllocationOrder
+
   override def allocateShard(
                               requester: ActorRef,
                               shardId: ShardId,
                               currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]]): Future[ActorRef] = {
-    val order: List[String] = List("192.168.100.180", "192.168.100.185", "192.168.100.192", "192.168.100.191")
     val targetHost = order(shardId.toInt - 1)
     var selectedRegion: ActorRef = ActorRef.noSender
     val remoteHosts = currentShardAllocations.map(sa => sa._1.path.address.host).filter(h => h.isDefined).map(d => d.get).toList
