@@ -87,7 +87,6 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
       })
 
 
-
       (config.guiType, config.worldType) match {
         case (GuiType.None, _) =>
         case (GuiType.Grid, GridWorldType) =>
@@ -113,7 +112,9 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
 
 
   }
+
   ShardRegion.GetShardRegionStats
+
   private def logHeader: String = s"worker:iteration;activeTime;waitingTime;${metricHeaders.mkString(";")}"
 }
 
@@ -124,10 +125,17 @@ class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance
                               shardId: ShardId,
                               currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]]): Future[ActorRef] = {
 
-  logger.info("SHARD ID: " + shardId)
-  currentShardAllocations.map(a => a._1.path.address.host).foreach(f => logger.info("HOST!!!: " + f.toString))
-  val (regionWithLeastShards, _) = currentShardAllocations.minBy { case (_, v) => v.size }
-  Future.successful(regionWithLeastShards)
+    val order: List[String] = List("192.168.100.251", "192.168.100.180", "192.168.100.185", "192.168.100.251")
+    val targetHost = order(shardId.toInt - 1)
+    currentShardAllocations.foreach(sa => {
+      if (sa._1.path.address.host.get == targetHost) {
+        logger.info("SELECTED: " + sa._1.path.address.host.get)
+        return Future.successful(sa._1)
+      }
+    })
+    val localHost = currentShardAllocations.filter(a => a._1.path.address.host.isEmpty).head
+    logger.info("SELECTED localhost")
+    Future.successful(localHost._1)
   }
 
   override def rebalance(
