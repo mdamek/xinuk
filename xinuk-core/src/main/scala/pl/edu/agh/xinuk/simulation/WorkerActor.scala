@@ -1,15 +1,15 @@
 package pl.edu.agh.xinuk.simulation
 
-import akka.actor.{Actor, ActorRef, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props, Stash}
+import akka.actor.{Actor, ActorRef, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props, Stash}
 import akka.cluster.sharding.ShardRegion.{ExtractEntityId, ExtractShardId}
 import org.slf4j.{Logger, LoggerFactory, MarkerFactory}
 import pl.edu.agh.xinuk.algorithm._
 import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
 import pl.edu.agh.xinuk.model._
-
 import java.awt.Color
 import java.security.SecureRandom
+
 import scala.collection.mutable
 import scala.util.Random
 
@@ -339,11 +339,12 @@ object WorkerActor {
 }
 
 class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
-  def address = system.provider.getDefaultAddress
+  def address: Address = system.provider.getDefaultAddress
 }
 
 object RemoteAddressExtension extends ExtensionId[RemoteAddressExtensionImpl]
   with ExtensionIdProvider {
+  override def lookup: RemoteAddressExtension.type = RemoteAddressExtension
   override def createExtension(system: ExtendedActorSystem) = new RemoteAddressExtensionImpl(system)
-  override def lookup(): ExtensionId[_ <: Extension] = RemoteAddressExtension
+  override def get(system: ActorSystem): RemoteAddressExtensionImpl = super.get(system)
 }
