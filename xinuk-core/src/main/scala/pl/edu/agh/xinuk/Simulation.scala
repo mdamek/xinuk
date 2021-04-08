@@ -3,18 +3,26 @@ package pl.edu.agh.xinuk
 import java.awt.Color
 import java.io.File
 import java.util.UUID
-import akka.actor.{ActorRef, ActorSystem}
-import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
+
+import akka.actor.{ActorRef, ActorSystem, Address, PoisonPill}
+import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
+import akka.cluster.sharding.ShardCoordinator.ShardAllocationStrategy
+import akka.cluster.sharding.ShardRegion.{ClusterShardingStats, GetClusterShardingStats, GetShardRegionStats, ShardId}
+import akka.pattern.AskTimeoutException
+import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import net.ceedubs.ficus.readers.ValueReader
 import pl.edu.agh.xinuk.algorithm.{Metrics, PlanCreator, PlanResolver, WorldCreator}
 import pl.edu.agh.xinuk.config.{GuiType, XinukConfig}
-import pl.edu.agh.xinuk.gui.{GridGuiActor, SnapshotActor, SplitSnapshotActor, LedPanelGuiActor}
+import pl.edu.agh.xinuk.gui.{GridGuiActor, LedPanelGuiActor, SnapshotActor, SplitSnapshotActor}
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.{GridWorldShard, GridWorldType}
 import pl.edu.agh.xinuk.simulation.WorkerActor
 
+import scala.collection.immutable
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.util.{Failure, Success, Try}
 
 class Simulation[ConfigType <: XinukConfig : ValueReader](
@@ -55,13 +63,19 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
 
   private val system = ActorSystem(rawConfig.getString("application.name"), rawConfig)
 
+  private val customAllocationStrategy = new CustomAllocationStrategy(ClusterShardingSettings(system).tuningParameters.leastShardAllocationRebalanceThreshold,
+    ClusterShardingSettings(system).tuningParameters.leastShardAllocationMaxSimultaneousRebalance, logger)
+
   private val workerRegionRef: ActorRef = ClusterSharding(system).start(
     typeName = WorkerActor.Name,
     entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
     settings = ClusterShardingSettings(system),
     extractShardId = WorkerActor.extractShardId,
-    extractEntityId = WorkerActor.extractEntityId
+    extractEntityId = WorkerActor.extractEntityId,
+    allocationStrategy = customAllocationStrategy,
+    handOffStopMessage = PoisonPill
   )
+
 
   def start(): Unit = {
     if (config.isSupervisor) {
@@ -72,12 +86,16 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
       })
 
+
+
       (config.guiType, config.worldType) match {
         case (GuiType.None, _) =>
         case (GuiType.Grid, GridWorldType) =>
           workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(GridGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
           })
+
+
         case (GuiType.SplitSnapshot, GridWorldType) =>
           workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(SplitSnapshotActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
@@ -92,7 +110,52 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
 
       }
     }
+
+
+  }
+  ShardRegion.GetShardRegionStats
+  private def logHeader: String = s"worker:iteration;activeTime;waitingTime;${metricHeaders.mkString(";")}"
+}
+
+class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance: Int, logger: Logger) extends ShardAllocationStrategy
+  with Serializable {
+  override def allocateShard(
+                              requester: ActorRef,
+                              shardId: ShardId,
+                              currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]]): Future[ActorRef] = {
+
+
+  currentShardAllocations.map(a => a._1.path).foreach(f => logger.info("TO TA SCIEZKAXD" + f.toString))
+  implicit val timeout: Timeout = Timeout(new FiniteDuration(15, SECONDS))
+  import akka.pattern.ask
+  val t : Timeout = new Timeout(new FiniteDuration(15, SECONDS))
+  val asd = requester.ask(GetShardRegionStats)
+  val result = Await.result(asd, t.duration)
+  logger.info("A TO RESULTXD" + result.toString)
+  print(result)
+
+  val (regionWithLeastShards, _) = currentShardAllocations.minBy { case (_, v) => v.size }
+  Future.successful(regionWithLeastShards)
   }
 
-  private def logHeader: String = s"worker:iteration;activeTime;waitingTime;${metricHeaders.mkString(";")}"
+  override def rebalance(
+                          currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]],
+                          rebalanceInProgress: Set[ShardId]): Future[Set[ShardId]] = {
+    if (rebalanceInProgress.size < maxSimultaneousRebalance) {
+      val (_, leastShards) = currentShardAllocations.minBy { case (_, v) => v.size }
+      val mostShards = currentShardAllocations
+        .collect {
+          case (_, v) => v.filterNot(s => rebalanceInProgress(s))
+        }
+        .maxBy(_.size)
+      val difference = mostShards.size - leastShards.size
+      if (difference > rebalanceThreshold) {
+        val n = math.min(
+          math.min(difference - rebalanceThreshold, rebalanceThreshold),
+          maxSimultaneousRebalance - rebalanceInProgress.size)
+        Future.successful(mostShards.sorted.take(n).toSet)
+      } else
+        Future.successful(Set.empty[ShardId])
+    } else Future.successful(Set.empty[ShardId])
+  }
 }
