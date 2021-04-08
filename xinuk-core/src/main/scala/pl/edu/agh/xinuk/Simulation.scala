@@ -124,16 +124,8 @@ class CustomAllocationStrategy(rebalanceThreshold: Int, maxSimultaneousRebalance
                               shardId: ShardId,
                               currentShardAllocations: Map[ActorRef, immutable.IndexedSeq[ShardId]]): Future[ActorRef] = {
 
-
-  currentShardAllocations.map(a => a._1.path).foreach(f => logger.info("TO TA SCIEZKAXD" + f.toString))
-  implicit val timeout: Timeout = Timeout(new FiniteDuration(15, SECONDS))
-  import akka.pattern.ask
-  val t : Timeout = new Timeout(new FiniteDuration(15, SECONDS))
-  val asd = requester.ask(GetShardRegionStats)
-  val result = Await.result(asd, t.duration)
-  logger.info("A TO RESULTXD" + result.toString)
-  print(result)
-
+  logger.info("SHARD ID: " + shardId)
+  currentShardAllocations.map(a => a._1.path.address.host).foreach(f => logger.info("HOST!!!: " + f.toString))
   val (regionWithLeastShards, _) = currentShardAllocations.minBy { case (_, v) => v.size }
   Future.successful(regionWithLeastShards)
   }
