@@ -34,7 +34,7 @@ object TorchMain extends LazyLogging {
           cellState.contents match {
             case Person(_) => Color.BLUE
             case Fire => Color.ORANGE
-            case Exit => new Color(139, 69, 19)
+            case Exit => Color.GREEN
             case Obstacle => Color.RED
             case _ => Color.BLACK
 //            case _ => cellToColorSign(cellState)
