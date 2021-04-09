@@ -26,7 +26,8 @@ final case class TorchPlanResolver() extends PlanResolver[TorchConfig] {
     val (newContents: CellContents, metrics: TorchMetrics) = (contents, update) match {
       case (_: Person, RemovePerson) =>
         (Empty, TorchMetrics.empty)
-
+      case (Fire, RemovePerson) =>
+        (Empty, TorchMetrics.empty)
       case (Exit, CreateFire) =>
         (Fire, TorchMetrics.fire)
       case (Empty, CreateFire) =>
