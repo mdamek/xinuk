@@ -29,9 +29,9 @@ object RabbitsMain extends LazyLogging {
   private def cellToColor: PartialFunction[CellState, Color] = {
     case cellState =>
       cellState.contents match {
-        case _: Rabbit => new Color(139, 69, 19)
+        case _: Rabbit => Color.WHITE
         case _: Lettuce => new Color(0, 128, 0)
-        case _ => Color.WHITE
+        case _ => Color.BLACK
       }
   }
 }
