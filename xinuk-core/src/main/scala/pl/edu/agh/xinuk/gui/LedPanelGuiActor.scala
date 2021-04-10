@@ -2,28 +2,23 @@ package pl.edu.agh.xinuk.gui
 
 import java.awt.Color
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest, HttpResponse}
 import net.liftweb.json.DefaultFormats
 import pl.edu.agh.xinuk.algorithm.Metrics
 import pl.edu.agh.xinuk.config.XinukConfig
-import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldShard}
-import pl.edu.agh.xinuk.simulation.WorkerActor.{GridInfo, MsgWrapper, SubscribeGridInfo}
+import pl.edu.agh.xinuk.simulation.WorkerActor.GridInfo
 
-class LedPanelGuiActor private(worker: ActorRef,
-                               simulationId: String,
-                               workerId: WorkerId,
-                               bounds: GridWorldShard.Bounds,
+class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
                                ledPanelPort: String)
                               (implicit config: XinukConfig) extends Actor with ActorLogging {
 
   override def receive: Receive = started
 
   override def preStart(): Unit = {
-    worker ! MsgWrapper(workerId, SubscribeGridInfo())
     log.info("GUI started")
   }
 
@@ -32,9 +27,6 @@ class LedPanelGuiActor private(worker: ActorRef,
   }
 
   def started: Receive = {
-    case WorkerAddress(host, port) =>
-      connectedLedPanelHost = host
-      log.info("Address of local work actor: " + host + ":" + port)
 
     case GridInfo(iteration, cells, metrics) =>
       updateLedPanel(iteration, cells)
@@ -44,8 +36,8 @@ class LedPanelGuiActor private(worker: ActorRef,
   }
 
   private val (xOffset, yOffset, xSize, ySize) = (bounds.xMin, bounds.yMin, bounds.xSize, bounds.ySize)
-  private var connectedLedPanelHost = ""
-  private var connectedLedPanelPort = ledPanelPort
+  private val connectedLedPanelHost = "127.0.0.1"
+  private val connectedLedPanelPort = ledPanelPort
 
   def updateLedPanel(iteration: Long, cells: Map[CellId, Color]): Unit = {
     import akka.pattern.pipe
@@ -82,9 +74,9 @@ object LedPanelGuiActor {
 
   final case class WorkerAddress private(host: String, port: String)
 
-  def props(worker: ActorRef, simulationId: String, workerId: WorkerId, bounds: GridWorldShard.Bounds, ledPanelPort: String)
+  def props(bounds: GridWorldShard.Bounds, ledPanelPort: String)
            (implicit config: XinukConfig): Props = {
-    Props(new LedPanelGuiActor(worker, simulationId, workerId, bounds, ledPanelPort))
+    Props(new LedPanelGuiActor(bounds, ledPanelPort))
   }
 }
 

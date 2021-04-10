@@ -15,6 +15,7 @@ import pl.edu.agh.xinuk.algorithm.{Metrics, PlanCreator, PlanResolver, WorldCrea
 import pl.edu.agh.xinuk.config.{GuiType, XinukConfig}
 import pl.edu.agh.xinuk.gui.{GridGuiActor, LedPanelGuiActor, SnapshotActor, SplitSnapshotActor}
 import pl.edu.agh.xinuk.model._
+import pl.edu.agh.xinuk.model.grid.GridWorldShard.Bounds
 import pl.edu.agh.xinuk.model.grid.{GridWorldShard, GridWorldType}
 import pl.edu.agh.xinuk.simulation.WorkerActor
 
@@ -72,9 +73,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
     settings = ClusterShardingSettings(system),
     extractShardId = WorkerActor.extractShardId,
-    extractEntityId = WorkerActor.extractEntityId,
-    allocationStrategy = customAllocationStrategy,
-    handOffStopMessage = PoisonPill
+    extractEntityId = WorkerActor.extractEntityId
   )
 
   def start(): Unit = {
@@ -100,7 +99,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
           system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
         case (GuiType.LedPanel, GridWorldType) =>
           workerToWorld.foreach({ case (workerId, world) =>
-            system.actorOf(LedPanelGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
+            WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
           })
         case _ => logger.warn("GUI type not recognized or incompatible with World format.")
       }

@@ -10,6 +10,9 @@ import pl.edu.agh.xinuk.model._
 import java.awt.Color
 import java.security.SecureRandom
 
+import pl.edu.agh.xinuk.gui.LedPanelGuiActor
+import pl.edu.agh.xinuk.model.grid.GridWorldShard.Bounds
+
 import scala.collection.mutable
 import scala.util.Random
 
@@ -69,8 +72,6 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case SubscribeGridInfo() =>
       guiActors += sender()
-      val remoteAddressOfGui = RemoteAddressExtension(context.system).address
-      sender() ! WorkerAddress(remoteAddressOfGui.host.get, remoteAddressOfGui.port.get.toString)
 
     case StartIteration(iteration) if iteration > config.iterationsNumber =>
       logger.info("finalizing")
@@ -148,6 +149,11 @@ class WorkerActor[ConfigType <: XinukConfig](
           iterationFinished = true
         }
       }
+
+    case StartLedGui(bounds: Bounds, ledPanelPort: String) => {
+      val guiActor: ActorRef = context.system.actorOf(LedPanelGuiActor.props(bounds, ledPanelPort))
+      guiActors += guiActor
+    }
 
       if (iterationFinished) {
         if (!config.skipEmptyLogs || iterationMetrics != emptyMetrics) {
@@ -336,15 +342,6 @@ object WorkerActor {
 
   final case class RemoteCellContents private(iteration: Long, remoteCellContents: Seq[(CellId, CellContents)])
 
-}
+  final case class StartLedGui(bounds: Bounds, ledPanelPort: String)
 
-class RemoteAddressExtensionImpl(system: ExtendedActorSystem) extends Extension {
-  def address: Address = system.provider.getDefaultAddress
-}
-
-object RemoteAddressExtension extends ExtensionId[RemoteAddressExtensionImpl]
-  with ExtensionIdProvider {
-  override def lookup: RemoteAddressExtension.type = RemoteAddressExtension
-  override def createExtension(system: ExtendedActorSystem) = new RemoteAddressExtensionImpl(system)
-  override def get(system: ActorSystem): RemoteAddressExtensionImpl = super.get(system)
 }
