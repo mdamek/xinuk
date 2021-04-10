@@ -262,8 +262,8 @@ class WorkerActor[ConfigType <: XinukConfig](
 
   private def defaultColor: CellState => Color =
     state => state.contents match {
-      case Obstacle => Color.BLACK
-      case Empty => Color.WHITE
+      case Obstacle => Color.RED
+      case Empty => Color.BLACK
       case other =>
         val random = new Random(other.getClass.hashCode())
         val hue = random.nextFloat()
