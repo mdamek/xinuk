@@ -73,7 +73,9 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
     settings = ClusterShardingSettings(system),
     extractShardId = WorkerActor.extractShardId,
-    extractEntityId = WorkerActor.extractEntityId
+    extractEntityId = WorkerActor.extractEntityId,
+    allocationStrategy = customAllocationStrategy,
+    handOffStopMessage = PoisonPill
   )
 
   def start(): Unit = {
