@@ -16,9 +16,9 @@ case class GamePlanResolver() extends PlanResolver[GameConfig] {
   override def applyUpdate(iteration: Long, contents: CellContents, update: Update)(implicit config: GameConfig): (CellContents, Metrics) = {
     val (newContents: CellContents, metrics: GameMetrics) = (contents, update) match {
       case (Life, RemoveLife) =>
-        (Empty, GameMetrics.empty)
+        (Empty, GameMetrics.death)
       case (Empty, CreateLife) =>
-        (Life, GameMetrics.empty)
+        (Life, GameMetrics.life)
 
       case _ => throw new IllegalArgumentException(s"Illegal update applied: state = $contents, update = $update")
     }
