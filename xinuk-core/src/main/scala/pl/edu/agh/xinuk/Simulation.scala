@@ -67,16 +67,25 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     ClusterShardingSettings(system).tuningParameters.leastShardAllocationMaxSimultaneousRebalance,
     logger,
     rawConfig.getStringList("shard-allocation-order").asScala.toList)
-
-  private val workerRegionRef: ActorRef = ClusterSharding(system).start(
-    typeName = WorkerActor.Name,
-    entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
-    settings = ClusterShardingSettings(system),
-    extractShardId = WorkerActor.extractShardId,
-    extractEntityId = WorkerActor.extractEntityId,
-    allocationStrategy = customAllocationStrategy,
-    handOffStopMessage = PoisonPill
-  )
+  private var workerRegionRef: ActorRef = ActorRef.noSender
+  if (rawConfig.getBoolean("raspberry-configuration")) {
+    workerRegionRef = ClusterSharding(system).start(
+      typeName = WorkerActor.Name,
+      entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
+      settings = ClusterShardingSettings(system),
+      extractShardId = WorkerActor.extractShardId,
+      extractEntityId = WorkerActor.extractEntityId,
+      allocationStrategy = customAllocationStrategy,
+      handOffStopMessage = PoisonPill
+    )
+  } else {
+    workerRegionRef = ClusterSharding(system).start(
+      typeName = WorkerActor.Name,
+      entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
+      settings = ClusterShardingSettings(system),
+      extractShardId = WorkerActor.extractShardId,
+      extractEntityId = WorkerActor.extractEntityId
+  }
 
   def start(): Unit = {
     if (config.isSupervisor) {
