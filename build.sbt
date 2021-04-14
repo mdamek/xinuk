@@ -14,6 +14,7 @@ val Version = new {
   val JacksonScala = "2.11.2"
   val Http = "10.2.0"
   val LiftJson = "3.4.0"
+  val requests = "0.6.5"
 }
 
 inThisBuild(Seq(
@@ -58,7 +59,8 @@ lazy val `xinuk-core` = project
       "org.scalatest" %% "scalatest" % Version.ScalaTest % Test,
       "com.typesafe.akka" %% "akka-testkit" % Version.Akka % Test,
       "org.mockito" % "mockito-core" % Version.Mockito % Test,
-      "net.liftweb" %% "lift-json" % Version.LiftJson
+      "net.liftweb" %% "lift-json" % Version.LiftJson,
+      "com.lihaoyi" %% "requests" % Version.requests
     ),
   ).disablePlugins(AssemblyPlugin)
 
