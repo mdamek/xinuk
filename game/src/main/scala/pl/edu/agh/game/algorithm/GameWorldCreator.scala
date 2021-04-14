@@ -26,7 +26,7 @@ object GameWorldCreator extends WorldCreator[GameConfig] {
       val res = requests.get(config.initialPositionPath + "/" + shape)
       val jValue = parse(res.text())
       val outsidePositions = jValue.extract[Array[Array[Int]]]
-
+      requests.get(config.cleanPositionsStatePath)
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
