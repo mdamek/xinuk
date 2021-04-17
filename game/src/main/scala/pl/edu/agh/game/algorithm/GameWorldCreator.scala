@@ -26,7 +26,10 @@ object GameWorldCreator extends WorldCreator[GameConfig] {
       val res = requests.get(config.initialPositionPath + "/" + shape)
       val jValue = parse(res.text())
       val outsidePositions = jValue.extract[Array[Array[Int]]]
-      requests.get(config.cleanPositionsStatePath)
+      val pathsToLedServers = config.cleanPositionsStatePath
+      for(w <- 0 to 3){
+        requests.get(pathsToLedServers(w) + "/clearPixelsState")
+      }
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
@@ -37,21 +40,25 @@ object GameWorldCreator extends WorldCreator[GameConfig] {
           None
         }
         contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
-      }
-    } else {
-      for {
-        x <- 0 until config.worldWidth
-        y <- 0 until config.worldHeight
-      } {
-        val contents: Option[CellContents] = if (config.random.nextDouble() < config.lifeSpawnChance) {
-          Some(Life)
-        }
-        else {
-          None
-        }
-        contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
-      }
     }
-    worldBuilder
   }
+
+  else
+  {
+    for {
+      x <- 0 until config.worldWidth
+      y <- 0 until config.worldHeight
+    } {
+      val contents: Option[CellContents] = if (config.random.nextDouble() < config.lifeSpawnChance) {
+        Some(Life)
+      }
+      else {
+        None
+      }
+      contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
+    }
+  }
+  worldBuilder
+}
+
 }

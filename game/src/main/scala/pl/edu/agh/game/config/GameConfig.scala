@@ -33,7 +33,7 @@ final case class GameConfig(worldType: WorldType,
                             lifeInitialSignal: Signal,
                             loadFromOutside: Boolean,
                             initialPositionPath: String,
-                            cleanPositionsStatePath: String,
+                            cleanPositionsStatePath: List[String],
                             lifeSpawnChance: Double
 
                            ) extends XinukConfig {
