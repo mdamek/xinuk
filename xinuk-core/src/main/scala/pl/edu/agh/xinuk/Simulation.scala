@@ -3,7 +3,6 @@ package pl.edu.agh.xinuk
 import java.awt.Color
 import java.io.File
 import java.util.UUID
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.cluster.sharding.ShardCoordinator.ShardAllocationStrategy
 import akka.cluster.sharding.ShardRegion.ShardId
@@ -17,7 +16,7 @@ import pl.edu.agh.xinuk.gui.{GridGuiActor, LedPanelGuiActor, SnapshotActor, Spli
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.GridWorldShard.Bounds
 import pl.edu.agh.xinuk.model.grid.{GridWorldShard, GridWorldType}
-import pl.edu.agh.xinuk.simulation.WorkerActor
+import pl.edu.agh.xinuk.simulation.{WorkerActor, WorkersManager}
 
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable
@@ -109,6 +108,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
         case (GuiType.Snapshot, GridWorldType) =>
           system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
         case (GuiType.LedPanel, GridWorldType) =>
+          new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList)
           workerToWorld.foreach({ case (workerId, world) =>
             WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
           })
