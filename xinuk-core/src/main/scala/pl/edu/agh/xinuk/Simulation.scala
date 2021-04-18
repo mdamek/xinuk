@@ -98,6 +98,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
       (config.guiType, config.worldType) match {
         case (GuiType.None, _) =>
         case (GuiType.Grid, GridWorldType) =>
+          new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"))
           workerToWorld.foreach({ case (workerId, world) =>
             system.actorOf(GridGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
           })
@@ -108,7 +109,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
         case (GuiType.Snapshot, GridWorldType) =>
           system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
         case (GuiType.LedPanel, GridWorldType) =>
-          new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList)
+          new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"))
           workerToWorld.foreach({ case (workerId, world) =>
             WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
           })

@@ -1,29 +1,28 @@
 package pl.edu.agh.xinuk.simulation
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Address, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider, Props, Stash}
+import akka.actor.{Actor, ActorRef, Props, Stash}
 import akka.cluster.sharding.ShardRegion.{ExtractEntityId, ExtractShardId}
 import org.slf4j.{Logger, LoggerFactory, MarkerFactory}
 import pl.edu.agh.xinuk.algorithm._
 import pl.edu.agh.xinuk.config.XinukConfig
-import pl.edu.agh.xinuk.gui.LedPanelGuiActor.WorkerAddress
-import pl.edu.agh.xinuk.model._
-import java.awt.Color
-import java.security.SecureRandom
-
 import pl.edu.agh.xinuk.gui.LedPanelGuiActor
+import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.GridWorldShard.Bounds
 
+import java.awt.Color
+import java.security.SecureRandom
 import scala.collection.mutable
+import scala.concurrent.duration.DurationLong
 import scala.util.Random
 
 class WorkerActor[ConfigType <: XinukConfig](
-  regionRef: => ActorRef,
-  planCreator: PlanCreator[ConfigType],
-  planResolver: PlanResolver[ConfigType],
-  emptyMetrics: => Metrics,
-  signalPropagation: SignalPropagation,
-  cellToColor: PartialFunction[CellState, Color]
-)(implicit config: ConfigType) extends Actor with Stash {
+                                              regionRef: => ActorRef,
+                                              planCreator: PlanCreator[ConfigType],
+                                              planResolver: PlanResolver[ConfigType],
+                                              emptyMetrics: => Metrics,
+                                              signalPropagation: SignalPropagation,
+                                              cellToColor: PartialFunction[CellState, Color]
+                                            )(implicit config: ConfigType) extends Actor with Stash {
 
   import pl.edu.agh.xinuk.simulation.WorkerActor._
 
@@ -45,6 +44,9 @@ class WorkerActor[ConfigType <: XinukConfig](
   var lastStepEnd: Long = _
   var iterationActiveDuration: Long = _
   var iterationWaitingDuration: Long = _
+
+  var stepSimulation: Boolean = false
+  var simulationDelay: Long = 0
 
   override def receive: Receive = stopped
 
@@ -92,15 +94,15 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case RemotePlans(iteration, remotePlans) =>
       measureTimes {
-      plansStash(iteration) :+= remotePlans
-      if (plansStash(currentIteration).size == worldShard.incomingWorkerNeighbours.size) {
-        val shuffledPlans: Seq[TargetedPlan] = shuffleUngroup(flatGroup(plansStash(currentIteration))(_.action.target))
-        val (acceptedPlans, discardedPlans) = processPlans(shuffledPlans)
-        plansStash.remove(currentIteration)
+        plansStash(iteration) :+= remotePlans
+        if (plansStash(currentIteration).size == worldShard.incomingWorkerNeighbours.size) {
+          val shuffledPlans: Seq[TargetedPlan] = shuffleUngroup(flatGroup(plansStash(currentIteration))(_.action.target))
+          val (acceptedPlans, discardedPlans) = processPlans(shuffledPlans)
+          plansStash.remove(currentIteration)
 
-        distributeConsequences(currentIteration, acceptedPlans.flatMap(_.consequence) ++ discardedPlans.flatMap(_.alternative))
+          distributeConsequences(currentIteration, acceptedPlans.flatMap(_.consequence) ++ discardedPlans.flatMap(_.alternative))
+        }
       }
-    }
 
     case RemoteConsequences(iteration, remoteConsequences) =>
       measureTimes {
@@ -150,11 +152,10 @@ class WorkerActor[ConfigType <: XinukConfig](
         }
       }
 
-    case StartLedGui(bounds: Bounds, ledPanelPort: String) => {
-      val guiActor: ActorRef = context.system.actorOf(LedPanelGuiActor.props(bounds, ledPanelPort))
-      guiActors += guiActor
-    }
-
+      val toSleep = math.max(0, this.simulationDelay - (iterationActiveDuration + iterationWaitingDuration).nano.toMillis)
+      if (toSleep != 0) {
+        Thread.sleep(toSleep)
+      }
       if (iterationFinished) {
         if (!config.skipEmptyLogs || iterationMetrics != emptyMetrics) {
           logMetrics(currentIteration, iterationMetrics)
@@ -162,6 +163,15 @@ class WorkerActor[ConfigType <: XinukConfig](
         iterationActiveDuration = 0L
         iterationWaitingDuration = 0L
       }
+
+    case StartLedGui(bounds: Bounds, ledPanelPort: String) =>
+      val guiActor: ActorRef = context.system.actorOf(LedPanelGuiActor.props(bounds, ledPanelPort))
+      guiActors += guiActor
+
+
+    case SetSimulationDelay(time: Long) =>
+      this.simulationDelay = time
+
   }
 
   private def measureTimes[A](block: => A): A = {
@@ -328,7 +338,7 @@ object WorkerActor {
 
   final case class SubscribeGridInfo()
 
-  final case class GridInfo (iteration: Long, cellColors: Map[CellId, Color], metrics: Metrics)
+  final case class GridInfo(iteration: Long, cellColors: Map[CellId, Color], metrics: Metrics)
 
   final case class WorkerInitialized(world: WorldShard)
 
@@ -343,5 +353,7 @@ object WorkerActor {
   final case class RemoteCellContents private(iteration: Long, remoteCellContents: Seq[(CellId, CellContents)])
 
   final case class StartLedGui(bounds: Bounds, ledPanelPort: String)
+
+  final case class SetSimulationDelay(time: Long)
 
 }
