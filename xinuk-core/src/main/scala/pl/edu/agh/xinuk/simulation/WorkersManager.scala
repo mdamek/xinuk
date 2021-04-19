@@ -16,13 +16,28 @@ class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, wor
   val interface: String = InetAddress.getLocalHost.getHostAddress
 
   val requestHandler: HttpRequest => HttpResponse = {
-    case HttpRequest(GET, Uri.Path("/startNextIteration"), _, _, _) =>
-      HttpResponse(entity = HttpEntity(ContentTypes.`text/html(UTF-8)`, "<html><body>Hello world!</body></html>"))
-
     case HttpRequest(GET, path@Uri.Path("/setSimulationDelay"), _, _, _) if path.rawQueryString.get.split("=")(0) == "delay" =>
       val delayInMs = path.rawQueryString.get.split("=")(1).toLong
       workersId.foreach(workerId => {
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.SetSimulationDelay(delayInMs))
+      })
+      HttpResponse(200)
+
+    case HttpRequest(GET, Uri.Path("/startSteppedSimulation"), _, _, _) =>
+      workersId.foreach(workerId => {
+        WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartSteppedSimulation)
+      })
+      HttpResponse(200)
+
+    case HttpRequest(GET, Uri.Path("/stopSteppedSimulation"), _, _, _) =>
+      workersId.foreach(workerId => {
+        WorkerActor.send(workerRegionRef, workerId, WorkerActor.StopSteppedSimulation)
+      })
+      HttpResponse(200)
+
+    case HttpRequest(GET, Uri.Path("/makeIteration"), _, _, _) =>
+      workersId.foreach(workerId => {
+        WorkerActor.send(workerRegionRef, workerId, WorkerActor.MakeIteration)
       })
       HttpResponse(200)
 

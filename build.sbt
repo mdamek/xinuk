@@ -37,7 +37,7 @@ inThisBuild(Seq(
 ))
 
 lazy val xinuk = project.in(file("."))
-  .aggregate(`xinuk-core`, rabbits, fortwist, torch, mock, urban)
+  .aggregate(`xinuk-core`, rabbits, fortwist, torch, mock, urban, game)
   .disablePlugins(AssemblyPlugin)
 
 lazy val `xinuk-core` = project

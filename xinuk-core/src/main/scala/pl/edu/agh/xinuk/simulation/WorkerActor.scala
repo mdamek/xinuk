@@ -45,7 +45,7 @@ class WorkerActor[ConfigType <: XinukConfig](
   var iterationActiveDuration: Long = _
   var iterationWaitingDuration: Long = _
 
-  var stepSimulation: Boolean = false
+  var stepSimulation: Boolean = _
   var simulationDelay: Long = 0
 
   override def receive: Receive = stopped
@@ -65,6 +65,8 @@ class WorkerActor[ConfigType <: XinukConfig](
       self ! StartIteration(1)
       unstashAll()
       context.become(started)
+      this.stepSimulation = context.system.settings.config.getBoolean("start-stepped")
+    //self ! MakeIteration
 
     case _ =>
       stash()
@@ -84,6 +86,7 @@ class WorkerActor[ConfigType <: XinukConfig](
       context.system.terminate()
 
     case StartIteration(iteration) =>
+      logger.info("Start iteration " + iteration.toString)
       measureTimes {
         currentIteration = iteration
         iterationFinished = false
@@ -147,8 +150,10 @@ class WorkerActor[ConfigType <: XinukConfig](
           if (iteration % config.iterationFinishedLogFrequency == 0) {
             logger.info(s"finished $iteration")
           }
-          self ! StartIteration(currentIteration + 1)
           iterationFinished = true
+          if (!this.stepSimulation) {
+            self ! StartIteration(currentIteration + 1)
+          }
         }
       }
 
@@ -168,10 +173,26 @@ class WorkerActor[ConfigType <: XinukConfig](
       val guiActor: ActorRef = context.system.actorOf(LedPanelGuiActor.props(bounds, ledPanelPort))
       guiActors += guiActor
 
-
     case SetSimulationDelay(time: Long) =>
-      this.simulationDelay = time
+      if (!this.stepSimulation) {
+        this.simulationDelay = time
+      }
 
+    case MakeIteration =>
+      if (this.stepSimulation) {
+        self ! StartIteration(currentIteration + 1)
+      }
+
+    case StartSteppedSimulation =>
+      if (!this.stepSimulation) {
+        this.stepSimulation = true
+      }
+
+    case StopSteppedSimulation =>
+      if (this.stepSimulation) {
+        this.stepSimulation = false
+        self ! StartIteration(currentIteration + 1)
+      }
   }
 
   private def measureTimes[A](block: => A): A = {
@@ -355,5 +376,11 @@ object WorkerActor {
   final case class StartLedGui(bounds: Bounds, ledPanelPort: String)
 
   final case class SetSimulationDelay(time: Long)
+
+  final case class MakeIteration()
+
+  final case class StartSteppedSimulation()
+
+  final case class StopSteppedSimulation()
 
 }
