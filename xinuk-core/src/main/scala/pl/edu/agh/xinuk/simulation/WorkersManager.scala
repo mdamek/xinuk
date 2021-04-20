@@ -3,7 +3,7 @@ package pl.edu.agh.xinuk.simulation
 import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpMethods.GET
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import pl.edu.agh.xinuk.model.WorkerId
 
 import java.net.InetAddress

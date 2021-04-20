@@ -66,7 +66,6 @@ class WorkerActor[ConfigType <: XinukConfig](
       unstashAll()
       context.become(started)
       this.stepSimulation = context.system.settings.config.getBoolean("start-stepped")
-    //self ! MakeIteration
 
     case _ =>
       stash()
@@ -190,6 +189,7 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case StopSteppedSimulation =>
       if (this.stepSimulation) {
+        this.simulationDelay = 0
         this.stepSimulation = false
         self ! StartIteration(currentIteration + 1)
       }
