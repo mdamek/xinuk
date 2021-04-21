@@ -189,7 +189,6 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case StopSteppedSimulation =>
       if (this.stepSimulation) {
-        this.simulationDelay = 0
         this.stepSimulation = false
         self ! StartIteration(currentIteration + 1)
       }
