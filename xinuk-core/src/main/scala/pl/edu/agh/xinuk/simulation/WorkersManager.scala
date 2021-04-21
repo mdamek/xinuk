@@ -9,11 +9,15 @@ import pl.edu.agh.xinuk.model.WorkerId
 import java.net.InetAddress
 import scala.concurrent.Future
 
-class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, workersId: List[WorkerId], port: Int) {
+class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, workersId: List[WorkerId], port: Int, interface: String) {
 
   implicit val system: ActorSystem = existingSystem
+  var host: String = interface
 
-  val interface: String = InetAddress.getLocalHost.getHostAddress
+  //to local run
+  if (InetAddress.getLocalHost.getHostName == "DESKTOP-TREPOQV") {
+    host = InetAddress.getLocalHost.getHostAddress
+  }
 
   val requestHandler: HttpRequest => HttpResponse = {
     case HttpRequest(GET, path@Uri.Path("/setSimulationDelay"), _, _, _) if path.rawQueryString.get.split("=")(0) == "delay" =>
@@ -46,7 +50,7 @@ class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, wor
       HttpResponse(404, entity = "Unknown resource!")
   }
 
-  val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(interface, port).bindSync(requestHandler)
+  val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(host, port).bindSync(requestHandler)
 
   println(s"Server online at http://$interface:$port/")
 }

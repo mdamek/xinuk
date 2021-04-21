@@ -60,12 +60,12 @@ class WorkerActor[ConfigType <: XinukConfig](
       this.worldShard = world
       this.logger = LoggerFactory.getLogger(id.value.toString)
       logger.info("starting")
+      this.stepSimulation = context.system.settings.config.getBoolean("start-stepped")
       planCreator.initialize(worldShard)
       lastStepEnd = System.nanoTime
       self ! StartIteration(1)
       unstashAll()
       context.become(started)
-      this.stepSimulation = context.system.settings.config.getBoolean("start-stepped")
 
     case _ =>
       stash()
