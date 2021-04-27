@@ -3,13 +3,6 @@
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <file>/home/pi/Desktop/logs.log</file>
         <param name="Append" value="false"/>
-        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
-            <evaluator class="ch.qos.logback.classic.boolex.OnMarkerEvaluator">
-                <marker>METRICS</marker>
-            </evaluator>
-            <onMismatch>DENY</onMismatch>
-            <onMatch>NEUTRAL</onMatch>
-        </filter>
         <encoder>
             <pattern>%logger{36}:%msg%n</pattern>
         </encoder>
