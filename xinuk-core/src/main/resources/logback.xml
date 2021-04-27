@@ -28,7 +28,9 @@
         </encoder>
     </appender>
 
-    <root level="info">
+    <logger name="akka" level="DEBUG" />
+
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
         <appender-ref ref="FILE" />
     </root>
