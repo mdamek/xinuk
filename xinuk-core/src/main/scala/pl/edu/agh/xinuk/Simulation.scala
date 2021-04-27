@@ -92,12 +92,10 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
       val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
       new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"),
         rawConfig.getStringList("shard-allocation-order").asScala.toList.head)
-      Thread.sleep(5.seconds.toMillis)
       val simulationId: String = UUID.randomUUID().toString
       workerToWorld.foreach({ case (workerId, world) =>
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
       })
-
       (config.guiType, config.worldType) match {
         case (GuiType.None, _) =>
         case (GuiType.Grid, GridWorldType) =>
