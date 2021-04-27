@@ -52,10 +52,8 @@ class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, wor
       HttpResponse(404, entity = "Unknown resource!")
   }
 
-  def bingManager(): Future[Http.ServerBinding] = {
-    val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(host, port).bindSync(requestHandler)
-    println(s"Server online at http://$interface:$port/")
-    return  bindingFuture
-  }
+  val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(host, port).bindSync(requestHandler)
+  Await.ready(bindingFuture, Duration.Inf)
+  println(s"Server online at http://$interface:$port/")
 }
 

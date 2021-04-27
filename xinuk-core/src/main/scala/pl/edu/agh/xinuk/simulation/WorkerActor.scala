@@ -57,6 +57,7 @@ class WorkerActor[ConfigType <: XinukConfig](
 
     case WorkerInitialized(world) =>
       this.id = world.workerId
+      this.id = world.workerId
       this.worldShard = world
       this.logger = LoggerFactory.getLogger(id.value.toString)
       logger.info("starting")

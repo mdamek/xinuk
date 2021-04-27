@@ -20,8 +20,8 @@ import pl.edu.agh.xinuk.simulation.{WorkerActor, WorkersManager}
 
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
 class Simulation[ConfigType <: XinukConfig : ValueReader](
@@ -90,33 +90,32 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
   def start(): Unit = {
     if (config.isSupervisor) {
       val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
-      val workerManager = new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"),
+      new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"),
         rawConfig.getStringList("shard-allocation-order").asScala.toList.head)
-      val binding = workerManager.bingManager()
-      binding.onComplete(_ => {
-        val simulationId: String = UUID.randomUUID().toString
-        workerToWorld.foreach({ case (workerId, world) =>
-          WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
-        })
-        (config.guiType, config.worldType) match {
-          case (GuiType.None, _) =>
-          case (GuiType.Grid, GridWorldType) =>
-            workerToWorld.foreach({ case (workerId, world) =>
-              system.actorOf(GridGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
-            })
-          case (GuiType.SplitSnapshot, GridWorldType) =>
-            workerToWorld.foreach({ case (workerId, world) =>
-              system.actorOf(SplitSnapshotActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
-            })
-          case (GuiType.Snapshot, GridWorldType) =>
-            system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
-          case (GuiType.LedPanel, GridWorldType) =>
-            workerToWorld.foreach({ case (workerId, world) =>
-              WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
-            })
-          case _ => logger.warn("GUI type not recognized or incompatible with World format.")
-        }
+      Thread.sleep(5.seconds.toMillis)
+      val simulationId: String = UUID.randomUUID().toString
+      workerToWorld.foreach({ case (workerId, world) =>
+        WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
       })
+
+      (config.guiType, config.worldType) match {
+        case (GuiType.None, _) =>
+        case (GuiType.Grid, GridWorldType) =>
+          workerToWorld.foreach({ case (workerId, world) =>
+            system.actorOf(GridGuiActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
+          })
+        case (GuiType.SplitSnapshot, GridWorldType) =>
+          workerToWorld.foreach({ case (workerId, world) =>
+            system.actorOf(SplitSnapshotActor.props(workerRegionRef, simulationId, workerId, world.asInstanceOf[GridWorldShard].bounds))
+          })
+        case (GuiType.Snapshot, GridWorldType) =>
+          system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
+        case (GuiType.LedPanel, GridWorldType) =>
+          workerToWorld.foreach({ case (workerId, world) =>
+            WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
+          })
+        case _ => logger.warn("GUI type not recognized or incompatible with World format.")
+      }
     }
   }
 
