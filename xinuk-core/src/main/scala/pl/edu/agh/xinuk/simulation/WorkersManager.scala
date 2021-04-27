@@ -6,8 +6,10 @@ import akka.http.scaladsl.model.HttpMethods.GET
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, Uri}
 import pl.edu.agh.xinuk.model.WorkerId
 
+import scala.concurrent.Await
 import java.net.InetAddress
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 
 class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, workersId: List[WorkerId], port: Int, interface: String) {
 
@@ -51,7 +53,7 @@ class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, wor
   }
 
   val bindingFuture: Future[Http.ServerBinding] = Http().newServerAt(host, port).bindSync(requestHandler)
-
+  Await.ready(bindingFuture, Duration.Inf)
   println(s"Server online at http://$interface:$port/")
 }
 
