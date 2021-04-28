@@ -64,7 +64,7 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
 
     val dat = write(Iteration(iteration.toInt, pointsMatrix))
 
-    requests.post("http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration", data = dat)
+    requests.post("http://0.0.0.0:8012", data = dat, headers = Map("Content-Type" -> "application/json"))
 
     //Source.single((request, NotUsed))
     //.via(flow)
