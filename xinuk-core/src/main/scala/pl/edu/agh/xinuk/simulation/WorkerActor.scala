@@ -86,7 +86,6 @@ class WorkerActor[ConfigType <: XinukConfig](
       context.system.terminate()
 
     case StartIteration(iteration) =>
-      logger.info("Start iteration " + iteration.toString)
       measureTimes {
         currentIteration = iteration
         iterationFinished = false
