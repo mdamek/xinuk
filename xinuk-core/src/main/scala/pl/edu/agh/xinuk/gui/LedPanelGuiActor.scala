@@ -1,17 +1,21 @@
 package pl.edu.agh.xinuk.gui
 
+import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpMethods, HttpRequest}
+import akka.http.scaladsl.model._
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import net.liftweb.json.DefaultFormats
+import net.liftweb.json.Serialization.write
 import pl.edu.agh.xinuk.algorithm.Metrics
 import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldShard}
 import pl.edu.agh.xinuk.simulation.WorkerActor.GridInfo
-import net.liftweb.json.Serialization.write
+
 import java.awt.Color
 import scala.concurrent.ExecutionContextExecutor
+import scala.util.Try
 
 class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
                                ledPanelPort: String)
@@ -40,6 +44,8 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
   implicit val dispatcher: ExecutionContextExecutor = system.dispatcher
   implicit val formats: DefaultFormats.type = DefaultFormats
 
+  val cl: Flow[(HttpRequest, Int), (Try[HttpResponse], Int), NotUsed] = Http().superPool[Int]()
+
   def updateLedPanel(iteration: Long, cells: Map[CellId, Color]): Unit = {
     val pointsMatrix = Array.ofDim[Int](xSize, ySize)
 
@@ -55,7 +61,12 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
       entity = HttpEntity(ContentTypes.`application/json`,
         write(Iteration(iteration.toInt, pointsMatrix))))
 
-    Http().singleRequest(request).flatMap {response => response.entity.discardBytes().future()}
+    Source(1 to 1)
+      .map(i => (request, i))
+      .via(cl)
+      .runWith(Sink.head)
+      .flatMap { result => result._1.get.entity.discardBytes().future() }
+    //Http().singleRequest(request).flatMap {response => response.entity.discardBytes().future()}
   }
 }
 
