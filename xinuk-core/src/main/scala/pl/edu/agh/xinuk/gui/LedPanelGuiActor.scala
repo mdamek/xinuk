@@ -3,6 +3,7 @@ package pl.edu.agh.xinuk.gui
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpEntity.LastChunk.data
 import akka.http.scaladsl.model._
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import net.liftweb.json.DefaultFormats
@@ -15,7 +16,7 @@ import pl.edu.agh.xinuk.simulation.WorkerActor.GridInfo
 
 import java.awt.Color
 import scala.concurrent.ExecutionContextExecutor
-import scala.util.{Try}
+import scala.util.Try
 
 class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
                                ledPanelPort: String)
@@ -61,10 +62,14 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
       entity = HttpEntity(ContentTypes.`application/json`,
         write(Iteration(iteration.toInt, pointsMatrix))))
 
-    Source.single((request, NotUsed))
-      .via(flow)
-      .runWith(Sink.head)
-      .flatMap {result => result._1.get.entity.discardBytes().future()}
+    val dat = write(Iteration(iteration.toInt, pointsMatrix))
+
+    requests.post("http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration", data = dat)
+
+    //Source.single((request, NotUsed))
+    //.via(flow)
+    //.runWith(Sink.head)
+    //.flatMap { result => result._1.get.entity.discardBytes().future() }
   }
 }
 
