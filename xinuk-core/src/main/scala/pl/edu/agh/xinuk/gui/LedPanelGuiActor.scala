@@ -56,20 +56,9 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
       case _ =>
     }
 
-    val request = HttpRequest(
-      method = HttpMethods.POST,
-      uri = s"http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration",
-      entity = HttpEntity(ContentTypes.`application/json`,
-        write(Iteration(iteration.toInt, pointsMatrix))))
-
-    val dat = write(Iteration(iteration.toInt, pointsMatrix))
-
-    requests.post(s"http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration", data = dat, headers = Map("Content-Type" -> "application/json"))
-
-    //Source.single((request, NotUsed))
-    //.via(flow)
-    //.runWith(Sink.head)
-    //.flatMap { result => result._1.get.entity.discardBytes().future() }
+    requests.post(s"http://$connectedLedPanelHost:$connectedLedPanelPort/xinukIteration",
+      data = write(Iteration(iteration.toInt, pointsMatrix)),
+      headers = Map("Content-Type" -> "application/json"))
   }
 }
 
