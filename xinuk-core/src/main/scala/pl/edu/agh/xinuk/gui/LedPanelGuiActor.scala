@@ -15,7 +15,7 @@ import pl.edu.agh.xinuk.simulation.WorkerActor.GridInfo
 
 import java.awt.Color
 import scala.concurrent.ExecutionContextExecutor
-import scala.util.Try
+import scala.util.{Try}
 
 class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
                                ledPanelPort: String)
@@ -44,7 +44,7 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
   implicit val dispatcher: ExecutionContextExecutor = system.dispatcher
   implicit val formats: DefaultFormats.type = DefaultFormats
 
-  val cl: Flow[(HttpRequest, Int), (Try[HttpResponse], Int), NotUsed] = Http().superPool[Int]()
+  val flow: Flow[(HttpRequest, NotUsed), (Try[HttpResponse], NotUsed), NotUsed] = Http().superPool[NotUsed]()
 
   def updateLedPanel(iteration: Long, cells: Map[CellId, Color]): Unit = {
     val pointsMatrix = Array.ofDim[Int](xSize, ySize)
@@ -61,12 +61,10 @@ class LedPanelGuiActor private(bounds: GridWorldShard.Bounds,
       entity = HttpEntity(ContentTypes.`application/json`,
         write(Iteration(iteration.toInt, pointsMatrix))))
 
-    Source(1 to 1)
-      .map(i => (request, i))
-      .via(cl)
+    Source.single((request, NotUsed))
+      .via(flow)
       .runWith(Sink.head)
-      .flatMap { result => result._1.get.entity.discardBytes().future() }
-    //Http().singleRequest(request).flatMap {response => response.entity.discardBytes().future()}
+      .flatMap {result => result._1.get.entity.discardBytes().future()}
   }
 }
 
