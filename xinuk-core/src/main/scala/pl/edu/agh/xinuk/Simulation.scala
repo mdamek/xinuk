@@ -66,32 +66,23 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     ClusterShardingSettings(system).tuningParameters.leastShardAllocationRebalanceThreshold,
     ClusterShardingSettings(system).tuningParameters.leastShardAllocationMaxSimultaneousRebalance,
     logger,
-    rawConfig.getStringList("shard-allocation-order").asScala.toList)
+    rawConfig.getString("shard-allocation-order").split(',').map(_.trim).toList)
   private var workerRegionRef: ActorRef = ActorRef.noSender
-  if (rawConfig.getBoolean("raspberry-configuration")) {
-    workerRegionRef = ClusterSharding(system).start(
-      typeName = WorkerActor.Name,
-      entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
-      settings = ClusterShardingSettings(system),
-      extractShardId = WorkerActor.extractShardId,
-      extractEntityId = WorkerActor.extractEntityId,
-      allocationStrategy = customAllocationStrategy,
-      handOffStopMessage = PoisonPill
-    )
-  } else {
-    workerRegionRef = ClusterSharding(system).start(
-      typeName = WorkerActor.Name,
-      entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
-      settings = ClusterShardingSettings(system),
-      extractShardId = WorkerActor.extractShardId,
-      extractEntityId = WorkerActor.extractEntityId)
-  }
+  workerRegionRef = ClusterSharding(system).start(
+    typeName = WorkerActor.Name,
+    entityProps = WorkerActor.props[ConfigType](workerRegionRef, planCreatorFactory(), planResolverFactory(), emptyMetrics, signalPropagation, cellToColor),
+    settings = ClusterShardingSettings(system),
+    extractShardId = WorkerActor.extractShardId,
+    extractEntityId = WorkerActor.extractEntityId,
+    allocationStrategy = customAllocationStrategy,
+    handOffStopMessage = PoisonPill
+  )
 
   def start(): Unit = {
     if (config.isSupervisor) {
       val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
       new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"),
-        rawConfig.getStringList("shard-allocation-order").asScala.toList.head)
+        rawConfig.getString("shard-allocation-order").split(',').map(_.trim).toList.head)
       val simulationId: String = UUID.randomUUID().toString
       workerToWorld.foreach({ case (workerId, world) =>
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
