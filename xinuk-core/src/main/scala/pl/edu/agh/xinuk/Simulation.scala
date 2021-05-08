@@ -82,7 +82,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
     if (config.isSupervisor) {
       val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
       new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"),
-        rawConfig.getString("shard-allocation-order").split(',').map(_.trim).toList.head)
+        rawConfig.getString("worker-manager-host"))
       val simulationId: String = UUID.randomUUID().toString
       workerToWorld.foreach({ case (workerId, world) =>
         WorkerActor.send(workerRegionRef, workerId, WorkerActor.WorkerInitialized(world))
