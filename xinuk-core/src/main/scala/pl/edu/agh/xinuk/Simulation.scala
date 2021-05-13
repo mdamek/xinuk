@@ -1,8 +1,5 @@
 package pl.edu.agh.xinuk
 
-import java.awt.Color
-import java.io.File
-import java.util.UUID
 import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.cluster.sharding.ShardCoordinator.ShardAllocationStrategy
 import akka.cluster.sharding.ShardRegion.ShardId
@@ -12,16 +9,16 @@ import com.typesafe.scalalogging.{LazyLogging, Logger}
 import net.ceedubs.ficus.readers.ValueReader
 import pl.edu.agh.xinuk.algorithm.{Metrics, PlanCreator, PlanResolver, WorldCreator}
 import pl.edu.agh.xinuk.config.{GuiType, XinukConfig}
-import pl.edu.agh.xinuk.gui.{GridGuiActor, LedPanelGuiActor, SnapshotActor, SplitSnapshotActor}
+import pl.edu.agh.xinuk.gui.{GridGuiActor, SnapshotActor, SplitSnapshotActor}
 import pl.edu.agh.xinuk.model._
-import pl.edu.agh.xinuk.model.grid.GridWorldShard.Bounds
 import pl.edu.agh.xinuk.model.grid.{GridWorldShard, GridWorldType}
-import pl.edu.agh.xinuk.simulation.{WorkerActor, WorkersManager}
+import pl.edu.agh.xinuk.simulation.{OutsideInitialPositionProvider, WorkerActor, WorkersManager}
 
-import scala.jdk.CollectionConverters._
+import java.awt.Color
+import java.io.File
+import java.util.UUID
 import scala.collection.immutable
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success, Try}
 
 class Simulation[ConfigType <: XinukConfig : ValueReader](
@@ -80,7 +77,12 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
 
   def start(): Unit = {
     if (config.isSupervisor) {
-      val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld().build()
+      val initialPosition: Array[Array[String]] = if (rawConfig.getBoolean("loadFromOutside")) {
+        OutsideInitialPositionProvider.Provide(rawConfig)
+      } else {
+        Array(Array.empty[String])
+      }
+      val workerToWorld: Map[WorkerId, WorldShard] = worldCreator.prepareWorld(initialPosition).build()
       new WorkersManager(system, workerRegionRef, workerToWorld.keys.toList, rawConfig.getInt("workers-manager-port"),
         rawConfig.getString("supervisor"))
       val simulationId: String = UUID.randomUUID().toString
@@ -101,7 +103,7 @@ class Simulation[ConfigType <: XinukConfig : ValueReader](
           system.actorOf(SnapshotActor.props(workerRegionRef, simulationId, workerToWorld.keySet))
         case (GuiType.LedPanel, GridWorldType) =>
           workerToWorld.foreach({ case (workerId, world) =>
-            WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, config.ledPanelPort))
+            WorkerActor.send(workerRegionRef, workerId, WorkerActor.StartLedGui(world.asInstanceOf[GridWorldShard].bounds, rawConfig.getString("ledPanelPort")))
           })
         case _ => logger.warn("GUI type not recognized or incompatible with World format.")
       }

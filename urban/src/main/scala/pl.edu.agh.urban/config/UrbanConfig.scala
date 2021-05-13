@@ -31,7 +31,6 @@ final case class UrbanConfig(
                               guiCellSize: Int,
                               guiStartIteration: Long,
                               guiUpdateFrequency: Long,
-                              ledPanelPort: String,
 
                               originalWidth: Int,
                               originalHeight: Int,

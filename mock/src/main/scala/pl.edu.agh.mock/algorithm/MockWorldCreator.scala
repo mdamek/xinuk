@@ -5,14 +5,34 @@ import pl.edu.agh.mock.model.Mock
 import pl.edu.agh.xinuk.algorithm.WorldCreator
 import pl.edu.agh.xinuk.model._
 import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldBuilder}
+import pl.edu.agh.xinuk.simulation.OutsideInitialPositionProvider
 
 object MockWorldCreator extends WorldCreator[MockConfig] {
 
-  override def prepareWorld()(implicit config: MockConfig): GridWorldBuilder = {
-    val worldBuilder: GridWorldBuilder = GridWorldBuilder().withGridConnections()//.withWrappedBoundaries()
+  def ConvertStringToType(value: String, types: List[CellContents]): Option[CellContents] = {
+    types.foreach(typeValue => {
+      if (value != null && typeValue.getClass.getSimpleName.toLowerCase.contains(value.toLowerCase)) {
+        Option(typeValue)
+      }
+    })
+    None
+  }
 
-    makeGrid(3, worldBuilder)
+  override def prepareWorld(initialPositions: Array[Array[String]])(implicit config: MockConfig): GridWorldBuilder = {
+    val worldBuilder: GridWorldBuilder = GridWorldBuilder().withGridConnections()
+    val availableTypes: List[CellContents] = List(Mock)
 
+    if (initialPositions.isEmpty) {
+      makeGrid(3, worldBuilder)
+    } else {
+      for {
+        x <- initialPositions.indices
+        y <- initialPositions(0).indices
+      } {
+        val contents: Option[CellContents] = ConvertStringToType(initialPositions(x)(y), availableTypes)
+        contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
+      }
+    }
     worldBuilder
   }
 

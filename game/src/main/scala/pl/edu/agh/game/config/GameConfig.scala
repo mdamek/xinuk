@@ -28,12 +28,8 @@ final case class GameConfig(worldType: WorldType,
                             guiType: GuiType,
                             guiStartIteration: Long,
                             guiUpdateFrequency: Long,
-                            ledPanelPort: String,
 
                             lifeInitialSignal: Signal,
-                            loadFromOutside: Boolean,
-                            initialPositionPath: String,
-                            cleanPositionsStatePath: List[String],
                             lifeSpawnChance: Double
 
                            ) extends XinukConfig {

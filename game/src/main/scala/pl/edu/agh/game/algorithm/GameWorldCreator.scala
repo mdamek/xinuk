@@ -5,60 +5,44 @@ import pl.edu.agh.game.model.Life
 import pl.edu.agh.xinuk.algorithm.WorldCreator
 import pl.edu.agh.xinuk.model.{CellContents, CellState, WorldBuilder}
 import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldBuilder}
-
-import net.liftweb.json._
+import pl.edu.agh.xinuk.simulation.OutsideInitialPositionProvider
 
 object GameWorldCreator extends WorldCreator[GameConfig] {
-  override def prepareWorld()(implicit config: GameConfig): WorldBuilder = {
-    val worldBuilder = GridWorldBuilder().withGridConnections()
-    val size = (config.worldWidth, config.worldHeight)
-    var shape: String = ""
 
-    size match {
-      case (64, 64) => shape = "square"
-      case (32, 128) => shape = "vertical"
-      case (128, 32) => shape = "horizontal"
-      case _ => shape = "square"
-    }
-
-    if (config.loadFromOutside) {
-      implicit val formats: DefaultFormats.type = DefaultFormats
-      val res = requests.get(config.initialPositionPath + "/" + shape)
-      val jValue = parse(res.text())
-      val outsidePositions = jValue.extract[Array[Array[Int]]]
-      val pathsToLedServers = config.cleanPositionsStatePath
-      for(w <- 0 to 3){
-        requests.get(pathsToLedServers(w) + "/clearPixelsState")
+  def ConvertStringToType(value: String, types: List[CellContents]): Option[CellContents] = {
+    types.foreach(typeValue => {
+      if (value != null && typeValue.getClass.getSimpleName.toLowerCase.contains(value.toLowerCase)) {
+        Option(typeValue)
       }
+    })
+    None
+  }
+
+  override def prepareWorld(initialPositions: Array[Array[String]])(implicit config: GameConfig): WorldBuilder = {
+    val worldBuilder = GridWorldBuilder().withGridConnections()
+    val availableTypes: List[CellContents] = List(Life)
+    if (initialPositions.isEmpty) {
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
       } {
-        val contents: Option[CellContents] = if (outsidePositions(x)(y) > 0) {
+        val contents: Option[CellContents] = if (config.random.nextDouble() < config.lifeSpawnChance) {
           Some(Life)
-        } else {
+        }
+        else {
           None
         }
         contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
-    }
-  }
-
-  else
-  {
-    for {
-      x <- 0 until config.worldWidth
-      y <- 0 until config.worldHeight
-    } {
-      val contents: Option[CellContents] = if (config.random.nextDouble() < config.lifeSpawnChance) {
-        Some(Life)
       }
-      else {
-        None
+    } else {
+      for {
+        x <- initialPositions.indices
+        y <- initialPositions(0).indices
+      } {
+        val contents: Option[CellContents] = ConvertStringToType(initialPositions(x)(y), availableTypes)
+        contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
       }
-      contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
     }
+    worldBuilder
   }
-  worldBuilder
-}
-
 }

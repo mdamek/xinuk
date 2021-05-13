@@ -23,7 +23,6 @@ final case class MockConfig(worldType: WorldType,
                             guiCellSize: Int,
                             guiStartIteration: Long,
                             guiUpdateFrequency: Long,
-                            ledPanelPort: String,
 
                             mockInitialSignal: Signal
                            ) extends XinukConfig

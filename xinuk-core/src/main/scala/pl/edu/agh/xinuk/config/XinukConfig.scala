@@ -20,8 +20,6 @@ trait XinukConfig {
   def isSupervisor: Boolean
   def shardingMod: Int
 
-  def ledPanelPort: String
-
   def guiType: GuiType
   def guiCellSize: Int
   def guiStartIteration: Long

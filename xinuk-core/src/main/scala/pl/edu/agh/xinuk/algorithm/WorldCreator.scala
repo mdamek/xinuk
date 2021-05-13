@@ -4,5 +4,5 @@ import pl.edu.agh.xinuk.config.XinukConfig
 import pl.edu.agh.xinuk.model.WorldBuilder
 
 trait WorldCreator[Config <: XinukConfig] {
-  def prepareWorld()(implicit config: Config): WorldBuilder
+  def prepareWorld(initialPositions: Array[Array[String]])(implicit config: Config): WorldBuilder
 }
