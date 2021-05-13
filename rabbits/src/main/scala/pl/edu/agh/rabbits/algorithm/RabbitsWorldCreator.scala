@@ -7,21 +7,9 @@ import pl.edu.agh.xinuk.model.{CellContents, CellState, Empty, WorldBuilder}
 import pl.edu.agh.xinuk.model.grid.{GridCellId, GridWorldBuilder}
 
 object RabbitsWorldCreator extends WorldCreator[RabbitsConfig] {
-
-  def ConvertStringToType(value: String, types: List[CellContents]): CellContents = {
-    types.foreach(typeValue => {
-      if (value != null && typeValue.getClass.getSimpleName.toLowerCase.contains(value.toLowerCase)) {
-        typeValue
-      }
-    })
-    Empty
-  }
-
   override def prepareWorld(initialPositions: Array[Array[String]])(implicit config: RabbitsConfig): WorldBuilder = {
     val worldBuilder = GridWorldBuilder().withGridConnections()
-    val availableTypes: List[CellContents] = List(Lettuce(0), Rabbit(config.rabbitStartEnergy, 0))
-
-    if (initialPositions.isEmpty) {
+    if (initialPositions(0).length == 0) {
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
@@ -37,15 +25,19 @@ object RabbitsWorldCreator extends WorldCreator[RabbitsConfig] {
       }
     } else {
       for {
-        x <- initialPositions.indices
-        y <- initialPositions(0).indices
+        x <- initialPositions(0).indices
+        y <- initialPositions.indices
       } {
-        val contents: CellContents = ConvertStringToType(initialPositions(x)(y), availableTypes)
-        worldBuilder(GridCellId(x, y)) = CellState(contents)
+        if (initialPositions(y)(x) != null) {
+          val actualValue = initialPositions(y)(x).toLowerCase
+          actualValue match {
+            case "rabbit" => worldBuilder(GridCellId(x, y)) = CellState(Rabbit(config.rabbitStartEnergy, 0))
+            case "lettuce" => worldBuilder(GridCellId(x, y)) = CellState(Lettuce(0))
+            case _ =>
+          }
+        }
       }
     }
-
-
     worldBuilder
   }
 }

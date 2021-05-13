@@ -20,27 +20,24 @@ object GameWorldCreator extends WorldCreator[GameConfig] {
 
   override def prepareWorld(initialPositions: Array[Array[String]])(implicit config: GameConfig): WorldBuilder = {
     val worldBuilder = GridWorldBuilder().withGridConnections()
-    val availableTypes: List[CellContents] = List(Life)
-    if (initialPositions.isEmpty) {
+    if (initialPositions(0).length == 0) {
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
       } {
-        val contents: Option[CellContents] = if (config.random.nextDouble() < config.lifeSpawnChance) {
-          Some(Life)
+        if (config.random.nextDouble() < config.lifeSpawnChance) {
+          worldBuilder(GridCellId(x, y)) = CellState(Life)
         }
-        else {
-          None
-        }
-        contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
       }
-    } else {
+    }
+    else {
       for {
-        x <- initialPositions.indices
-        y <- initialPositions(0).indices
+        x <- initialPositions(0).indices
+        y <- initialPositions.indices
       } {
-        val contents: Option[CellContents] = ConvertStringToType(initialPositions(x)(y), availableTypes)
-        contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
+        if (initialPositions(y)(x) != null) {
+          worldBuilder(GridCellId(x, y)) = CellState(Life)
+        }
       }
     }
     worldBuilder

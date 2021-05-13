@@ -17,7 +17,7 @@ object TorchWorldCreator extends WorldCreator[TorchConfig] {
       if (value != null && typeValue.getClass.getSimpleName.toLowerCase.contains(value.toLowerCase)) {
         if (typeValue.getClass.getName.toLowerCase == "person") {
           Option(Person(random.nextInt(config.personMaxSpeed) + 1))
-        }else{
+        } else {
           Option(typeValue)
         }
       }
@@ -25,12 +25,9 @@ object TorchWorldCreator extends WorldCreator[TorchConfig] {
     None
   }
 
-
   override def prepareWorld(initialPositions: Array[Array[String]])(implicit config: TorchConfig): WorldBuilder = {
     val worldBuilder = GridWorldBuilder().withGridConnections()
-    val availableTypes: List[CellContents] = List(Exit, Fire, Person(0))
-
-    if (initialPositions.isEmpty) {
+    if (initialPositions(0).length == 0) {
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
@@ -51,14 +48,25 @@ object TorchWorldCreator extends WorldCreator[TorchConfig] {
       }
     } else {
       for {
-        x <- initialPositions.indices
-        y <- initialPositions(0).indices
+        x <- initialPositions(0).indices
+        y <- initialPositions.indices
       } {
-        val contents: Option[CellContents] = ConvertStringToType(initialPositions(x)(y), availableTypes, config)
-        contents.foreach(c => worldBuilder(GridCellId(x, y)) = CellState(c))
+        if (initialPositions(y)(x) != null) {
+          val actualValue = initialPositions(y)(x).toLowerCase
+          actualValue match {
+            case "person" =>
+              val speed = random.nextInt(config.personMaxSpeed) + 1
+              worldBuilder(GridCellId(x, y)) = CellState(Person(speed))
+            case "exit" =>
+              worldBuilder(GridCellId(x, y)) = CellState(Exit)
+            case "fire" =>
+              worldBuilder(GridCellId(x, y)) = CellState(Fire)
+            case _ =>
+          }
+        }
       }
     }
-
     worldBuilder
   }
+
 }

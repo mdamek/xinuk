@@ -12,19 +12,9 @@ object FortwistWorldCreator extends WorldCreator[FortwistConfig] {
 
   private val random = new Random(System.nanoTime())
 
-  def ConvertStringToType(value: String, types: List[Foraminifera]): Seq[Foraminifera] = {
-    types.foreach(typeValue => {
-      if (value != null && typeValue.getClass.getSimpleName.toLowerCase.contains(value.toLowerCase)) {
-        Seq(typeValue)
-      }
-    })
-    Seq()
-  }
-
   override def prepareWorld(initialPositions: Array[Array[String]])(implicit config: FortwistConfig): WorldBuilder = {
     val worldBuilder = GridWorldBuilder().withGridConnections()
-    val availableTypes: List[Foraminifera] = List(Foraminifera())
-    if (initialPositions.isEmpty) {
+    if (initialPositions(0).length == 0) {
       for {
         x <- 0 until config.worldWidth
         y <- 0 until config.worldHeight
@@ -38,10 +28,14 @@ object FortwistWorldCreator extends WorldCreator[FortwistConfig] {
       }
     } else {
       for {
-        x <- initialPositions.indices
-        y <- initialPositions(0).indices
+        x <- initialPositions(0).indices
+        y <- initialPositions.indices
       } {
-        val foraminiferas: Seq[Foraminifera] = ConvertStringToType(initialPositions(x)(y), availableTypes)
+        val foraminiferas: Seq[Foraminifera] = if (initialPositions(y)(x) != null) {
+          Seq(Foraminifera())
+        } else {
+          Seq()
+        }
         worldBuilder(GridCellId(x, y)) = CellState(Seabed(foraminiferas, config.algaeStartEnergy))
       }
     }
