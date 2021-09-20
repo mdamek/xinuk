@@ -50,6 +50,6 @@ class WorkersManager(existingSystem: ActorSystem, workerRegionRef: ActorRef, wor
   }
 
   Http().newServerAt(host, port).bindSync(requestHandler)
-  println(s"Server online at http://$interface:$port/")
+  println(s"Server online at http://$host:$port/")
 }
 
